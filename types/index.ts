@@ -1,0 +1,335 @@
+// ─── Core domain types ────────────────────────────────────────────────────────
+
+export interface Role {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string;
+  created_at: string;
+}
+
+export interface Contributor {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role_id: string | null;
+  telegram_username: string | null;
+  deleted_at: string | null;
+  created_at: string;
+  // joined from roles
+  role?: Role;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string | null;
+  created_by: string | null;
+  created_at: string;
+  // joined
+  creator?: Contributor;
+}
+
+export interface Group {
+  id: string;
+  project_id: string;
+  name: string;
+  position: number;
+  created_at: string;
+  // joined
+  tasks?: Task[];
+}
+
+export type TaskStatus =
+  | "Not Started"
+  | "In Progress"
+  | "Done"
+  | "Help"
+  | "I am Stuck"
+  | "For Improvements";
+
+export interface Task {
+  id: string;
+  group_id: string;
+  project_id: string;
+  title: string;
+  description: string | null;
+  assignee_id: string | null;
+  status: TaskStatus;
+  timeline_start: string | null;
+  timeline_end: string | null;
+  due_date: string | null;
+  pr_link: string | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
+  // joined
+  assignee?: Contributor;
+  attachments?: TaskAttachment[];
+}
+
+export interface TaskAttachment {
+  id: string;
+  task_id: string;
+  file_name: string;
+  file_url: string;
+  uploaded_by: string | null;
+  uploaded_at: string;
+  // joined
+  uploader?: Contributor;
+}
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  created_by: string | null;
+  sent_at: string | null;
+  created_at: string;
+  // joined
+  author?: Contributor;
+}
+
+export type QAStatus = "Pass" | "Fail" | "Blocked" | "Not Run";
+
+export interface QATest {
+  id: string;
+  project_id: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  status: QAStatus;
+  assigned_to: string | null;
+  bug_report: string | null;
+  created_at: string;
+  updated_at: string;
+  // joined
+  assignee?: Contributor;
+}
+
+// ─── UI / view helpers ────────────────────────────────────────────────────────
+
+export interface BoardColumn {
+  group: Group;
+  tasks: Task[];
+}
+
+export interface BoardData {
+  project: Project;
+  columns: BoardColumn[];
+}
+
+// ─── Auth store ───────────────────────────────────────────────────────────────
+
+export interface AuthStore {
+  contributor: Contributor | null;
+  setContributor: (c: Contributor | null) => void;
+}
+
+// ─── API response wrappers ────────────────────────────────────────────────────
+
+export interface ApiSuccess<T> {
+  data: T;
+  error: null;
+}
+
+export interface ApiError {
+  data: null;
+  error: string;
+}
+
+export type ApiResult<T> = ApiSuccess<T> | ApiError;
+
+// ─── Form payloads ────────────────────────────────────────────────────────────
+
+export interface CreateTaskPayload {
+  group_id: string;
+  project_id: string;
+  title: string;
+  description?: string;
+  assignee_id?: string;
+  status?: TaskStatus;
+  timeline_start?: string;
+  timeline_end?: string;
+  due_date?: string;
+  pr_link?: string;
+}
+
+export interface UpdateTaskPayload extends Partial<CreateTaskPayload> {
+  id: string;
+}
+
+export interface CreateAnnouncementPayload {
+  title: string;
+  body: string;
+}
+
+export interface CreateQATestPayload {
+  project_id: string;
+  title: string;
+  description?: string;
+  category?: string;
+  assigned_to?: string;
+}
+
+export interface UpdateQATestPayload extends Partial<CreateQATestPayload> {
+  id: string;
+  status?: QAStatus;
+  bug_report?: string;
+}
+
+// ─── Supabase Database type ───────────────────────────────────────────────────
+// Row types use only actual DB columns (no joined / computed fields).
+// Supabase's generic machinery requires Views/Functions/Enums/CompositeTypes.
+
+export type Database = {
+  public: {
+    Tables: {
+      roles: {
+        Row: {
+          id: string; name: string; description: string | null;
+          color: string; created_at: string;
+        };
+        Insert: {
+          id?: string; name: string; description?: string | null;
+          color?: string; created_at?: string;
+        };
+        Update: {
+          id?: string; name?: string; description?: string | null;
+          color?: string; created_at?: string;
+        };
+        Relationships: [];
+      };
+      contributors: {
+        Row: {
+          id: string; email: string; full_name: string | null;
+          role_id: string | null; telegram_username: string | null;
+          deleted_at: string | null; created_at: string;
+        };
+        Insert: {
+          id?: string; email: string; full_name?: string | null;
+          role_id?: string | null; telegram_username?: string | null;
+          deleted_at?: string | null; created_at?: string;
+        };
+        Update: {
+          id?: string; email?: string; full_name?: string | null;
+          role_id?: string | null; telegram_username?: string | null;
+          deleted_at?: string | null; created_at?: string;
+        };
+        Relationships: [];
+      };
+      projects: {
+        Row: {
+          id: string; name: string; description: string | null;
+          created_by: string | null; created_at: string;
+        };
+        Insert: {
+          id?: string; name: string; description?: string | null;
+          created_by?: string | null; created_at?: string;
+        };
+        Update: {
+          id?: string; name?: string; description?: string | null;
+          created_by?: string | null; created_at?: string;
+        };
+        Relationships: [];
+      };
+      groups: {
+        Row: {
+          id: string; project_id: string; name: string;
+          position: number; created_at: string;
+        };
+        Insert: {
+          id?: string; project_id: string; name: string;
+          position?: number; created_at?: string;
+        };
+        Update: {
+          id?: string; project_id?: string; name?: string;
+          position?: number; created_at?: string;
+        };
+        Relationships: [];
+      };
+      tasks: {
+        Row: {
+          id: string; group_id: string; project_id: string;
+          title: string; description: string | null;
+          assignee_id: string | null; status: string;
+          timeline_start: string | null; timeline_end: string | null;
+          due_date: string | null; pr_link: string | null;
+          position: number; created_at: string; updated_at: string;
+        };
+        Insert: {
+          id?: string; group_id: string; project_id: string;
+          title: string; description?: string | null;
+          assignee_id?: string | null; status?: string;
+          timeline_start?: string | null; timeline_end?: string | null;
+          due_date?: string | null; pr_link?: string | null;
+          position?: number; created_at?: string; updated_at?: string;
+        };
+        Update: {
+          id?: string; group_id?: string; project_id?: string;
+          title?: string; description?: string | null;
+          assignee_id?: string | null; status?: string;
+          timeline_start?: string | null; timeline_end?: string | null;
+          due_date?: string | null; pr_link?: string | null;
+          position?: number; created_at?: string; updated_at?: string;
+        };
+        Relationships: [];
+      };
+      task_attachments: {
+        Row: {
+          id: string; task_id: string; file_name: string;
+          file_url: string; uploaded_by: string | null; uploaded_at: string;
+        };
+        Insert: {
+          id?: string; task_id: string; file_name: string;
+          file_url: string; uploaded_by?: string | null; uploaded_at?: string;
+        };
+        Update: {
+          id?: string; task_id?: string; file_name?: string;
+          file_url?: string; uploaded_by?: string | null; uploaded_at?: string;
+        };
+        Relationships: [];
+      };
+      announcements: {
+        Row: {
+          id: string; title: string; body: string;
+          created_by: string | null; sent_at: string | null; created_at: string;
+        };
+        Insert: {
+          id?: string; title: string; body: string;
+          created_by?: string | null; sent_at?: string | null; created_at?: string;
+        };
+        Update: {
+          id?: string; title?: string; body?: string;
+          created_by?: string | null; sent_at?: string | null; created_at?: string;
+        };
+        Relationships: [];
+      };
+      qa_tests: {
+        Row: {
+          id: string; project_id: string; title: string;
+          description: string | null; category: string | null; status: string;
+          assigned_to: string | null; bug_report: string | null;
+          created_at: string; updated_at: string;
+        };
+        Insert: {
+          id?: string; project_id: string; title: string;
+          description?: string | null; category?: string | null; status?: string;
+          assigned_to?: string | null; bug_report?: string | null;
+          created_at?: string; updated_at?: string;
+        };
+        Update: {
+          id?: string; project_id?: string; title?: string;
+          description?: string | null; category?: string | null; status?: string;
+          assigned_to?: string | null; bug_report?: string | null;
+          created_at?: string; updated_at?: string;
+        };
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};
