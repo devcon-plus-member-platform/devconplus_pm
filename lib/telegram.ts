@@ -22,6 +22,17 @@ interface TaskRow {
   group?: { name: string } | null;
 }
 
+interface MeetingRow {
+  id: string;
+  title: string;
+  type: string;
+  meeting_date: string;
+  start_time: string;
+  end_time: string;
+  timezone: string;
+  google_meet_link: string | null;
+}
+
 // ─── Bot singleton ────────────────────────────────────────────────────────────
 
 let _bot: Bot | null = null;
@@ -75,6 +86,8 @@ function registerHandlers(bot: Bot) {
         "/mytasks — View your currently assigned tasks\n" +
         "/deadlines — Tasks due in the next 7 days\n" +
         "/status <keyword> — Search your tasks and update status\n" +
+        "/meetings — Your upcoming meetings this week\n" +
+        "/standup — Get a quick standup summary\n" +
         "/announce <message> — \\(PM only\\) Send announcement to all contributors\n" +
         "/help — Show this message",
       { parse_mode: "MarkdownV2" }
@@ -319,6 +332,86 @@ function registerHandlers(bot: Bot) {
 
     await ctx.reply(
       `📣 Announcement sent to ${json.sent} contributor${json.sent !== 1 ? "s" : ""}.`
+    );
+  });
+
+  // /meetings — list the contributor's upcoming meetings (next 7 days)
+  bot.command("meetings", async (ctx) => {
+    const username = ctx.from?.username;
+    if (!username) return ctx.reply("Could not determine your Telegram username.");
+
+    const contributor = await getContributor(username).catch(() => null);
+    if (!contributor) return ctx.reply(notLinkedMessage());
+
+    const now = new Date();
+    const sevenDays = new Date();
+    sevenDays.setDate(now.getDate() + 7);
+    const todayStr = now.toISOString().split("T")[0];
+    const endStr = sevenDays.toISOString().split("T")[0];
+
+    const supabase = createServiceRoleClient();
+    const { data: attendeeRows, error } = await supabase
+      .from("meeting_attendees")
+      .select("meeting:meetings(id,title,type,meeting_date,start_time,end_time,timezone,google_meet_link)")
+      .eq("contributor_id", contributor.id)
+      .gte("meeting.meeting_date", todayStr)
+      .lte("meeting.meeting_date", endStr)
+      .eq("meeting.status", "Scheduled");
+
+    if (error) {
+      console.error("[/meetings]", error);
+      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+    }
+
+    const meetings = (attendeeRows ?? [])
+      .map((r) => r.meeting)
+      .filter(Boolean) as unknown as MeetingRow[];
+
+    if (meetings.length === 0) {
+      return ctx.reply("No meetings scheduled in the next 7 days. 📅");
+    }
+
+    meetings.sort((a, b) => a.meeting_date.localeCompare(b.meeting_date) || a.start_time.localeCompare(b.start_time));
+
+    const lines = meetings.map((m) => {
+      const date = new Date(m.meeting_date + "T00:00:00").toLocaleDateString("en-PH", {
+        weekday: "short", month: "short", day: "numeric",
+      });
+      const time = `${m.start_time.slice(0, 5)} – ${m.end_time.slice(0, 5)}`;
+      const link = m.google_meet_link ? `\n   🔗 ${m.google_meet_link}` : "";
+      return `• [${m.type}] ${m.title}\n   ${date} at ${time} (${m.timezone})${link}`;
+    });
+
+    await ctx.reply(`📅 Your upcoming meetings:\n\n${lines.join("\n\n")}`);
+  });
+
+  // /standup — prompt contributor to post today's standup update
+  bot.command("standup", async (ctx) => {
+    const username = ctx.from?.username;
+    if (!username) return ctx.reply("Could not determine your Telegram username.");
+
+    const contributor = await getContributor(username).catch(() => null);
+    if (!contributor) return ctx.reply(notLinkedMessage());
+
+    const supabase = createServiceRoleClient();
+    const { data: tasks } = await supabase
+      .from("tasks")
+      .select("id,title,status")
+      .eq("assignee_id", contributor.id)
+      .not("status", "eq", "Done")
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .limit(5);
+
+    const rows = (tasks as unknown as TaskRow[]) ?? [];
+
+    const greeting = `Good day, ${contributor.full_name ?? contributor.email}! 👋\n\nHere are your active tasks:\n`;
+    const taskLines = rows.length > 0
+      ? rows.map((t, i) => `${i + 1}. ${t.title} — ${t.status}`).join("\n")
+      : "No active tasks right now.";
+
+    await ctx.reply(
+      greeting + taskLines +
+      "\n\nUse /status <keyword> to update any task, or head to the dashboard for full details."
     );
   });
 

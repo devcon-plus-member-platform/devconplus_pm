@@ -34,9 +34,10 @@ interface Props {
   contributors: Contributor[];
   onUpdate: (updates: Partial<QATest>) => void;
   onDelete: () => void;
+  onEscalate?: () => void;
 }
 
-export default function QARow({ test, contributors, onUpdate, onDelete }: Props) {
+export default function QARow({ test, contributors, onUpdate, onDelete, onEscalate }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editTitle, setEditTitle] = useState(false);
   const [titleVal, setTitleVal] = useState(test.title);
@@ -211,16 +212,33 @@ export default function QARow({ test, contributors, onUpdate, onDelete }: Props)
         {/* Bug report — visible when Fail */}
         <td className="py-2.5">
           {test.status === "Fail" ? (
-            <textarea
-              defaultValue={test.bug_report ?? ""}
-              onBlur={(e) => {
-                const v = e.target.value;
-                if (v !== (test.bug_report ?? "")) onUpdate({ bug_report: v || null });
-              }}
-              rows={2}
-              placeholder="Describe the bug…"
-              className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-brand-300 placeholder-gray-300"
-            />
+            <div className="space-y-1.5">
+              {test.bug_id ? (
+                <a
+                  href={`/bugs#${test.bug_id}`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-700 border border-red-100 rounded-full text-xs font-medium hover:bg-red-100 transition-colors"
+                >
+                  🐛 Bug filed
+                </a>
+              ) : (
+                <button
+                  onClick={onEscalate}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-600 text-white rounded-full text-xs font-medium hover:bg-red-700 transition-colors"
+                >
+                  Escalate to Bug
+                </button>
+              )}
+              <textarea
+                defaultValue={test.bug_report ?? ""}
+                onBlur={(e) => {
+                  const v = e.target.value;
+                  if (v !== (test.bug_report ?? "")) onUpdate({ bug_report: v || null });
+                }}
+                rows={2}
+                placeholder="Describe the bug…"
+                className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-brand-300 placeholder-gray-300"
+              />
+            </div>
           ) : (
             <span className="text-xs text-gray-300">—</span>
           )}

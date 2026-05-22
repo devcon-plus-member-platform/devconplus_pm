@@ -101,10 +101,95 @@ export interface QATest {
   status: QAStatus;
   assigned_to: string | null;
   bug_report: string | null;
+  bug_id: string | null;
   created_at: string;
   updated_at: string;
   // joined
   assignee?: Contributor;
+}
+
+// ─── Bugs ─────────────────────────────────────────────────────────────────────
+
+export type BugSeverity = "Critical" | "High" | "Medium" | "Low";
+export type BugStatus = "Open" | "In Progress" | "Resolved" | "Closed" | "Cannot Reproduce";
+
+export interface Bug {
+  id: string;
+  project_id: string;
+  title: string;
+  description: string;
+  steps_to_reproduce: string | null;
+  expected_behavior: string | null;
+  actual_behavior: string | null;
+  severity: BugSeverity;
+  status: BugStatus;
+  reported_by: string | null;
+  assigned_to: string | null;
+  qa_test_id: string | null;
+  task_id: string | null;
+  pr_link: string | null;
+  environment: string | null;
+  browser_device: string | null;
+  screenshot_urls: string[];
+  created_at: string;
+  updated_at: string;
+  // joined
+  reporter?: Contributor;
+  assignee?: Contributor;
+  qa_test?: { id: string; title: string };
+  linked_task?: { id: string; title: string };
+}
+
+export interface BugActivity {
+  id: string;
+  bug_id: string;
+  changed_by: string | null;
+  field_changed: string;
+  old_value: string | null;
+  new_value: string | null;
+  changed_at: string;
+  // joined
+  changer?: Contributor;
+}
+
+// ─── Meetings ─────────────────────────────────────────────────────────────────
+
+export type MeetingType = "Standup" | "Audit" | "Other";
+export type MeetingRecurrence = "None" | "Daily" | "Weekly" | "Biweekly" | "Monthly";
+export type MeetingStatus = "Scheduled" | "Cancelled" | "Completed";
+export type RsvpStatus = "Pending" | "Accepted" | "Declined";
+
+export interface Meeting {
+  id: string;
+  project_id: string | null;
+  title: string;
+  type: MeetingType;
+  description: string | null;
+  meeting_date: string;
+  start_time: string;
+  end_time: string;
+  timezone: string;
+  recurrence: MeetingRecurrence;
+  recurrence_end_date: string | null;
+  google_calendar_event_id: string | null;
+  google_meet_link: string | null;
+  reminder_minutes_before: number;
+  status: MeetingStatus;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  // joined
+  attendees?: MeetingAttendee[];
+  creator?: Contributor;
+}
+
+export interface MeetingAttendee {
+  id: string;
+  meeting_id: string;
+  contributor_id: string;
+  rsvp_status: RsvpStatus;
+  // joined
+  contributor?: Contributor;
 }
 
 // ─── UI / view helpers ────────────────────────────────────────────────────────

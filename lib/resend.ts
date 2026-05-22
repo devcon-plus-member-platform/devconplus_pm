@@ -100,7 +100,166 @@ export async function sendAnnouncementEmail(opts: AnnouncementEmailOptions): Pro
   });
 }
 
-// ─── Welcome new contributor ───────────────────────────────────────────────────
+// ─── Bug assigned ─────────────────────────────────────────────────────────────
+export interface BugAssignedEmailOptions {
+  to: string;
+  assigneeName: string;
+  bugTitle: string;
+  severity: string;
+  environment: string | null;
+  description: string;
+  bugId: string;
+}
+
+export async function sendBugAssignedEmail(opts: BugAssignedEmailOptions): Promise<void> {
+  const resend = getResendClient();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
+  await resend.emails.send({
+    from: "DEVCON+ PM <onboarding@resend.dev>",
+    to: opts.to,
+    subject: `[DEVCON+ PM] Bug assigned to you: ${opts.bugTitle}`,
+    html: emailWrapper(`
+      <p style="color:#374151;">Hi <strong>${opts.assigneeName}</strong>,</p>
+      <p style="color:#374151;">A <strong>${opts.severity}</strong> severity bug has been assigned to you.</p>
+      <table style="width:100%;border-collapse:collapse;margin:20px 0;">
+        <tr>
+          <td style="padding:10px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-weight:600;color:#374151;width:30%;">Title</td>
+          <td style="padding:10px 12px;border:1px solid #e5e7eb;color:#374151;">${opts.bugTitle}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-weight:600;color:#374151;">Severity</td>
+          <td style="padding:10px 12px;border:1px solid #e5e7eb;color:#374151;">${opts.severity}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-weight:600;color:#374151;">Environment</td>
+          <td style="padding:10px 12px;border:1px solid #e5e7eb;color:#374151;">${opts.environment ?? "Not specified"}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-weight:600;color:#374151;">Description</td>
+          <td style="padding:10px 12px;border:1px solid #e5e7eb;color:#374151;">${opts.description.slice(0, 200)}${opts.description.length > 200 ? "…" : ""}</td>
+        </tr>
+      </table>
+      ${ctaButton(`${appUrl}/bugs#${opts.bugId}`, "View Bug")}
+    `),
+  });
+}
+
+// ─── Meeting confirmation ──────────────────────────────────────────────────────
+export interface MeetingConfirmationEmailOptions {
+  to: string;
+  recipientName: string;
+  title: string;
+  meetingDate: string;
+  startTime: string;
+  endTime: string;
+  timezone: string;
+  recurrence: string;
+  description: string | null;
+  meetLink: string | null;
+}
+
+export async function sendMeetingConfirmationEmail(
+  opts: MeetingConfirmationEmailOptions
+): Promise<void> {
+  const resend = getResendClient();
+
+  const formattedDate = new Date(opts.meetingDate).toLocaleDateString("en-PH", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  const recurrenceLabel =
+    opts.recurrence === "None" ? "One-time" : opts.recurrence;
+
+  await resend.emails.send({
+    from: "DEVCON+ PM <onboarding@resend.dev>",
+    to: opts.to,
+    subject: `📅 Meeting scheduled: ${opts.title}`,
+    html: emailWrapper(`
+      <p style="color:#374151;">Hi <strong>${opts.recipientName}</strong>,</p>
+      <p style="color:#374151;">A meeting has been scheduled for you.</p>
+      <div style="margin:20px 0;padding:20px;background:#f8faff;border-left:4px solid #2234b0;border-radius:0 8px 8px 0;">
+        <p style="margin:0 0 8px;font-size:16px;font-weight:700;color:#1e2970;">📌 ${opts.title}</p>
+        <p style="margin:4px 0;color:#374151;">🗓 ${formattedDate} at ${opts.startTime} – ${opts.endTime} ${opts.timezone}</p>
+        <p style="margin:4px 0;color:#374151;">🔁 Recurrence: ${recurrenceLabel}</p>
+        ${opts.description ? `<p style="margin:8px 0 4px;color:#374151;">📝 ${opts.description}</p>` : ""}
+        ${opts.meetLink ? `<p style="margin:8px 0 4px;color:#374151;">🎥 Google Meet: <a href="${opts.meetLink}" style="color:#2234b0;">${opts.meetLink}</a></p>` : ""}
+      </div>
+      <p style="color:#6b7280;font-size:13px;">This event has been added to your Google Calendar automatically. See you there!</p>
+    `),
+  });
+}
+
+// ─── Meeting cancellation ──────────────────────────────────────────────────────
+export interface MeetingCancellationEmailOptions {
+  to: string;
+  recipientName: string;
+  title: string;
+  meetingDate: string;
+  startTime: string;
+}
+
+export async function sendMeetingCancellationEmail(
+  opts: MeetingCancellationEmailOptions
+): Promise<void> {
+  const resend = getResendClient();
+
+  const formattedDate = new Date(opts.meetingDate).toLocaleDateString("en-PH", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  await resend.emails.send({
+    from: "DEVCON+ PM <onboarding@resend.dev>",
+    to: opts.to,
+    subject: `❌ Meeting cancelled: ${opts.title}`,
+    html: emailWrapper(`
+      <p style="color:#374151;">Hi <strong>${opts.recipientName}</strong>,</p>
+      <p style="color:#374151;">The following meeting has been <strong>cancelled</strong>:</p>
+      <div style="margin:20px 0;padding:16px;background:#fff5f5;border-left:4px solid #ef4444;border-radius:0 8px 8px 0;">
+        <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#374151;">${opts.title}</p>
+        <p style="margin:0;color:#6b7280;">${formattedDate} at ${opts.startTime}</p>
+      </div>
+    `),
+  });
+}
+
+// ─── Meeting reminder ──────────────────────────────────────────────────────────
+export interface MeetingReminderEmailOptions {
+  to: string;
+  recipientName: string;
+  title: string;
+  startTime: string;
+  timezone: string;
+  minutesBefore: number;
+  meetLink: string | null;
+}
+
+export async function sendMeetingReminderEmail(
+  opts: MeetingReminderEmailOptions
+): Promise<void> {
+  const resend = getResendClient();
+
+  await resend.emails.send({
+    from: "DEVCON+ PM <onboarding@resend.dev>",
+    to: opts.to,
+    subject: `⏰ Meeting starting soon: ${opts.title}`,
+    html: emailWrapper(`
+      <p style="color:#374151;">Hi <strong>${opts.recipientName}</strong>,</p>
+      <p style="color:#374151;">Your meeting is starting in <strong>${opts.minutesBefore} minutes</strong>.</p>
+      <div style="margin:20px 0;padding:16px;background:#f0f9ff;border-left:4px solid #0ea5e9;border-radius:0 8px 8px 0;">
+        <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#374151;">📌 ${opts.title}</p>
+        <p style="margin:4px 0;color:#374151;">🕐 ${opts.startTime} ${opts.timezone}</p>
+        ${opts.meetLink ? `<p style="margin:4px 0;color:#374151;">🎥 <a href="${opts.meetLink}" style="color:#2234b0;font-weight:600;">Join Google Meet</a></p>` : ""}
+      </div>
+    `),
+  });
+}
 export interface WelcomeEmailOptions {
   to: string;
   name: string;

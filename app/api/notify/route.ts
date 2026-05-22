@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendTaskAssignedEmail, sendWelcomeEmail } from "@/lib/resend";
+import { sendTaskAssignedEmail, sendWelcomeEmail, sendBugAssignedEmail } from "@/lib/resend";
 import { createServiceRoleClient } from "@/lib/supabase";
-import type { Contributor, Task } from "@/types";
+import type { Contributor, Task, Bug } from "@/types";
 
 type NotifyPayload =
   | { type: "task_assigned"; task_id: string; assignee_email: string }
-  | { type: "welcome_contributor"; email: string; name: string };
+  | { type: "welcome_contributor"; email: string; name: string }
+  | { type: "bug_assigned"; bug_id: string; assignee_email: string };
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,6 +40,33 @@ export async function POST(request: NextRequest) {
     // ─── welcome_contributor ──────────────────────────────────────────────────
     if (body.type === "welcome_contributor") {
       await sendWelcomeEmail({ to: body.email, name: body.name });
+      return NextResponse.json({ ok: true });
+    }
+
+    // ─── bug_assigned ─────────────────────────────────────────────────────────
+    if (body.type === "bug_assigned") {
+      const supabase = createServiceRoleClient();
+
+      const { data: bug } = await supabase
+        .from("bugs")
+        .select("*, assignee:contributors!assigned_to(*)")
+        .eq("id", body.bug_id)
+        .single<Bug & { assignee: Contributor | null }>();
+
+      if (!bug) {
+        return NextResponse.json({ ok: false, error: "Bug not found" }, { status: 404 });
+      }
+
+      await sendBugAssignedEmail({
+        to: body.assignee_email,
+        assigneeName: bug.assignee?.full_name ?? body.assignee_email,
+        bugTitle: bug.title,
+        severity: bug.severity,
+        environment: bug.environment,
+        description: bug.description,
+        bugId: bug.id,
+      });
+
       return NextResponse.json({ ok: true });
     }
 

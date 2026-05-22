@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import QARow from "./QARow";
-import type { Project, Contributor, QATest, QAStatus } from "@/types";
+import NewBugModal from "@/components/bugs/NewBugModal";
+import type { Project, Contributor, QATest, QAStatus, Bug } from "@/types";
 
 const ALL = "All";
 const STATUS_OPTIONS: (QAStatus | typeof ALL)[] = [ALL, "Not Run", "Pass", "Fail", "Blocked"];
@@ -48,6 +49,7 @@ export default function QAClient({ initialProjects, contributors }: Props) {
   const [loading, setLoading] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL);
   const [statusFilter, setStatusFilter] = useState<QAStatus | typeof ALL>(ALL);
+  const [escalatingFrom, setEscalatingFrom] = useState<QATest | null>(null);
 
   // Derive categories from current tests
   const categories = useMemo(() => {
@@ -109,6 +111,15 @@ export default function QAClient({ initialProjects, contributors }: Props) {
     setTests((prev) => prev.filter((t) => t.id !== id));
     const { error } = await supabase.from("qa_tests").delete().eq("id", id);
     if (error) setTests(saved);
+  }
+
+  async function handleBugCreated(bug: Bug, qaTestId: string) {
+    setEscalatingFrom(null);
+    // Link the bug back to the qa_test
+    await supabase.from("qa_tests").update({ bug_id: bug.id }).eq("id", qaTestId);
+    setTests((prev) =>
+      prev.map((t) => (t.id === qaTestId ? { ...t, bug_id: bug.id } : t))
+    );
   }
 
   // ─── Filtered view ─────────────────────────────────────────────────────────
@@ -250,12 +261,27 @@ export default function QAClient({ initialProjects, contributors }: Props) {
                   contributors={contributors}
                   onUpdate={(updates) => updateTest(test.id, updates, test)}
                   onDelete={() => deleteTest(test.id)}
+                  onEscalate={() => setEscalatingFrom(test)}
                 />
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {escalatingFrom && selectedProjectId && (
+        <NewBugModal
+          projectId={selectedProjectId}
+          contributors={contributors}
+          prefilledFromQA={{
+            qaTestId: escalatingFrom.id,
+            title: escalatingFrom.title,
+            description: escalatingFrom.description,
+          }}
+          onCreated={(bug) => handleBugCreated(bug, escalatingFrom.id)}
+          onClose={() => setEscalatingFrom(null)}
+        />
+      )}
     </div>
   );
 }

@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { isOverdue, formatDate } from "@/lib/utils";
+import BugSummaryWidget from "./BugSummaryWidget";
+import UpcomingMeetingsWidget from "./UpcomingMeetingsWidget";
 import type { Task, Contributor } from "@/types";
 
 interface Props {
   tasks: Task[];
   currentContributor: Contributor | null;
+  selectedProjectId: string;
 }
 
 interface StatCardProps {
@@ -25,7 +28,7 @@ function StatCard({ label, value, accent = "text-gray-800" }: StatCardProps) {
   );
 }
 
-export default function DashboardOverview({ tasks, currentContributor }: Props) {
+export default function DashboardOverview({ tasks, currentContributor, selectedProjectId }: Props) {
   const stats = useMemo(() => {
     const total = tasks.length;
     const inProgress = tasks.filter((t) => t.status === "In Progress").length;
@@ -60,8 +63,8 @@ export default function DashboardOverview({ tasks, currentContributor }: Props) 
 
   return (
     <div className="px-6 pt-5 pb-4 border-b border-gray-100 bg-gray-50/60">
-      {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+      {/* Stats row — tasks */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
         <StatCard label="Total Tasks" value={stats.total} />
         <StatCard label="In Progress" value={stats.inProgress} accent="text-blue-600" />
         <StatCard label="Done" value={stats.done} accent="text-green-600" />
@@ -71,6 +74,13 @@ export default function DashboardOverview({ tasks, currentContributor }: Props) 
           accent={stats.overdue > 0 ? "text-red-500" : "text-gray-800"}
         />
       </div>
+
+      {/* Bug summary (self-fetching) */}
+      {selectedProjectId && (
+        <div className="mb-4">
+          <BugSummaryWidget projectId={selectedProjectId} />
+        </div>
+      )}
 
       {/* My tasks this week */}
       {currentContributor && (
@@ -110,6 +120,9 @@ export default function DashboardOverview({ tasks, currentContributor }: Props) 
           )}
         </div>
       )}
+
+      {/* Upcoming meetings (self-fetching) */}
+      <UpcomingMeetingsWidget />
     </div>
   );
 }

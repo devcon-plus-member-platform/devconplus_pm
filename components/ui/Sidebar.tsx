@@ -11,7 +11,9 @@ import NotificationCenter from "./NotificationCenter";
 const NAV_ITEMS = [
   { href: "/dashboard", label: "PM Board", icon: "📋" },
   { href: "/qa", label: "QA", icon: "🧪" },
+  { href: "/bugs", label: "Bugs", icon: "🐛" },
   { href: "/announcements", label: "Announcements", icon: "📣" },
+  { href: "/meetings", label: "Meetings", icon: "📅" },
   { href: "/contributors", label: "Contributors", icon: "👥" },
 ];
 

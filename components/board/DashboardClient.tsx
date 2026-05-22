@@ -447,7 +447,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
 
           {/* Main board */}
           <div className="flex-1 overflow-hidden bg-white flex flex-col">
-            <DashboardOverview tasks={allTasks} currentContributor={currentContributor} />
+            <DashboardOverview tasks={allTasks} currentContributor={currentContributor} selectedProjectId={selectedProjectId ?? ""} />
             {selectedProject ? (
               <div className="flex-1 overflow-hidden">
                 <ProjectBoard project={selectedProject} loading={loading} />
