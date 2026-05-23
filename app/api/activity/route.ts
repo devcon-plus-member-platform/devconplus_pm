@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
         entityTitle: body.entityTitle,
         page: body.page,
       });
+      console.log(`[activity] email sent → ${ADMIN_EMAIL} | ${body.actorName} ${body.action} ${body.entity}: "${body.entityTitle}"`);
     }
 
     return NextResponse.json({ ok: true });

@@ -41,9 +41,10 @@ export default function DashboardOverview({ tasks, currentContributor, selectedP
 
   const myTasksThisWeek = useMemo(() => {
     if (!currentContributor) return [];
-    const now = new Date();
-    const sevenDays = new Date();
-    sevenDays.setDate(now.getDate() + 7);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // normalize to start of today so due-today tasks are included
+    const sevenDays = new Date(today);
+    sevenDays.setDate(today.getDate() + 7);
 
     return tasks
       .filter((t) => {
@@ -51,7 +52,8 @@ export default function DashboardOverview({ tasks, currentContributor, selectedP
         if (t.status === "Done") return false;
         if (!t.due_date) return false;
         const d = new Date(t.due_date);
-        return d >= now && d <= sevenDays;
+        d.setHours(0, 0, 0, 0);
+        return d >= today && d <= sevenDays;
       })
       .sort((a, b) => {
         if (!a.due_date) return 1;

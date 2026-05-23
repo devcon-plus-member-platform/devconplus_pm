@@ -71,9 +71,10 @@ export default function NotificationCenter() {
   useEffect(() => {
     if (!isAdmin(contributor?.email)) return;
     const supabase = supabaseRef.current;
+    const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     const channel = supabase
-      .channel(`admin-activity:${Date.now()}`)
+      .channel(`admin-activity:${uid}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "tasks" },
@@ -133,8 +134,9 @@ export default function NotificationCenter() {
     if (isAdmin(contributor?.email) || !contributor?.id) return;
     const supabase = supabaseRef.current;
 
+    const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const channel = supabase
-      .channel(`assignments:${contributor.id}:${Date.now()}`)
+      .channel(`assignments:${contributor.id}:${uid}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "tasks", filter: `assignee_id=eq.${contributor.id}` },

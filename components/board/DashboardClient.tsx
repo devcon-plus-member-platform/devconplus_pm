@@ -24,7 +24,6 @@ import ProjectBoard from "./ProjectBoard";
 import DashboardOverview from "./DashboardOverview";
 import NewProjectModal from "./modals/NewProjectModal";
 import { useAuthStore } from "@/lib/store";
-import { isAdmin } from "@/lib/permissions";
 
 interface Props {
   initialProjects: Project[];

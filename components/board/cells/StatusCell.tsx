@@ -58,11 +58,14 @@ export default function StatusCell({ task, onUpdate }: Props) {
         ref={triggerRef}
         onClick={handleOpen}
         className={cn(
-          "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-opacity hover:opacity-80 whitespace-nowrap",
+          "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-all duration-100 hover:opacity-80 hover:shadow-sm whitespace-nowrap",
           getBadgeClasses(task.status)
         )}
       >
         {task.status}
+        <svg className="w-2.5 h-2.5 opacity-60" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
       </button>
 
       {open &&

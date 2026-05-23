@@ -36,7 +36,7 @@ export default function DueDateCell({ task, onUpdate }: Props) {
               if (e.key === "Enter") save();
               if (e.key === "Escape") { setEditing(false); setVal(task.due_date ?? ""); }
             }}
-            className="text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-300 w-[128px]"
+            className="text-xs border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-300 w-[128px] transition-shadow"
           />
           {val && (
             <button
@@ -60,7 +60,7 @@ export default function DueDateCell({ task, onUpdate }: Props) {
           setEditing(true);
         }}
         className={cn(
-          "text-xs px-2 py-1 rounded-md transition-colors w-full text-left whitespace-nowrap",
+          "flex items-center gap-1.5 text-xs px-2 py-1 rounded-md transition-all duration-100 w-full text-left whitespace-nowrap",
           overdue
             ? "text-red-600 bg-red-50 hover:bg-red-100 font-medium"
             : task.due_date
@@ -70,7 +70,11 @@ export default function DueDateCell({ task, onUpdate }: Props) {
       >
         {task.due_date ? (
           <>
-            {overdue && "⚠ "}
+            {overdue && (
+              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            )}
             {formatDate(task.due_date)}
           </>
         ) : (

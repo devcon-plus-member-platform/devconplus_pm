@@ -37,7 +37,6 @@ const COLOR_PALETTE = [
   { label: "Cyan",    value: "#06b6d4" },
 ];
 
-// Fallback palette when no localStorage entry exists yet
 const DEFAULT_ACCENTS = COLOR_PALETTE.map((c) => c.value);
 
 function storageKey(groupId: string) {
@@ -56,20 +55,19 @@ export default function GroupSection({ group, colorIdx }: Props) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
-  // Hydrate from localStorage after mount (avoids SSR mismatch)
   useEffect(() => {
     const saved = localStorage.getItem(storageKey(group.id));
     if (saved) setAccent(saved);
   }, [group.id]);
 
-  // Close picker on outside click
   useEffect(() => {
+    if (!pickerOpen) return;
     const handler = (e: MouseEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
         setPickerOpen(false);
       }
     };
-    if (pickerOpen) document.addEventListener("mousedown", handler);
+    document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [pickerOpen]);
 
@@ -122,38 +120,41 @@ export default function GroupSection({ group, colorIdx }: Props) {
   return (
     <div
       ref={setNodeRef}
-      style={{ ...style, borderLeft: `4px solid ${accent}` }}
-      className="rounded-xl border border-gray-200 bg-white overflow-hidden"
+      style={{ ...style, borderLeft: `3px solid ${accent}` }}
+      className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200"
     >
       {/* Group header */}
       <div
-        className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-200 group/header"
-        style={{ backgroundColor: `${accent}12` }}
+        className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 group/header"
+        style={{ backgroundColor: `${accent}0d` }}
       >
         {/* Drag handle */}
         <button
-          className="text-gray-300 hover:text-gray-500 cursor-grab opacity-0 group-hover/header:opacity-100 transition-opacity shrink-0"
+          className="text-gray-300 hover:text-gray-500 cursor-grab opacity-0 group-hover/header:opacity-100 transition-all duration-150 shrink-0 p-0.5 rounded hover:bg-black/5"
+          title="Drag group"
           {...attributes}
           {...listeners}
         >
-          ⠿
+          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zM7 8a1 1 0 11-2 0 1 1 0 012 0zM7 12a1 1 0 11-2 0 1 1 0 012 0zM13 4a1 1 0 11-2 0 1 1 0 012 0zM13 8a1 1 0 11-2 0 1 1 0 012 0zM13 12a1 1 0 11-2 0 1 1 0 012 0z" />
+          </svg>
         </button>
 
         {/* Collapse / expand toggle */}
         <button
           onClick={() => toggleGroupCollapse(group.id)}
           title={collapsed ? "Expand group" : "Collapse group"}
-          className="text-gray-400 hover:text-gray-700 transition-colors shrink-0 rounded p-0.5 hover:bg-black/5"
+          className="shrink-0 w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-black/5 rounded transition-all duration-150"
         >
           <svg
-            className="w-4 h-4 transition-transform duration-150"
+            className="w-3.5 h-3.5 transition-transform duration-200"
             style={{ transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)" }}
             fill="none"
             stroke="currentColor"
             strokeWidth={2.5}
             viewBox="0 0 24 24"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
           </svg>
         </button>
 
@@ -162,20 +163,20 @@ export default function GroupSection({ group, colorIdx }: Props) {
           <button
             onClick={() => setPickerOpen((v) => !v)}
             title="Change group color"
-            className="w-4 h-4 rounded-full border-2 border-white shadow-sm ring-1 ring-gray-200 hover:ring-gray-400 transition-all"
+            className="w-3.5 h-3.5 rounded-full border-2 border-white shadow ring-1 ring-black/10 hover:ring-black/25 transition-all duration-150 hover:scale-110"
             style={{ backgroundColor: accent }}
           />
 
           {pickerOpen && (
-            <div className="absolute z-30 top-full left-0 mt-2 p-2 bg-white border border-gray-200 rounded-xl shadow-xl w-[136px]">
-              <p className="text-[10px] text-gray-400 font-medium mb-2 px-0.5">Group color</p>
+            <div className="absolute z-30 top-full left-0 mt-2 p-2.5 bg-white border border-gray-200 rounded-xl shadow-xl w-[144px]">
+              <p className="text-[10px] text-gray-400 font-semibold mb-2 px-0.5 uppercase tracking-wide">Color</p>
               <div className="grid grid-cols-4 gap-1.5">
                 {COLOR_PALETTE.map((c) => (
                   <button
                     key={c.value}
                     title={c.label}
                     onClick={() => pickColor(c.value)}
-                    className="w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 flex items-center justify-center"
+                    className="w-7 h-7 rounded-full border-2 transition-all duration-150 hover:scale-110 flex items-center justify-center"
                     style={{
                       backgroundColor: c.value,
                       borderColor: accent === c.value ? "white" : "transparent",
@@ -208,13 +209,14 @@ export default function GroupSection({ group, colorIdx }: Props) {
                 setEditingName(false);
               }
             }}
-            className="flex-1 text-sm font-semibold bg-white border border-brand-300 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-400"
+            className="flex-1 text-sm font-semibold bg-white border border-brand-300 rounded-md px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 transition-shadow"
           />
         ) : (
           <button
             onClick={() => setEditingName(true)}
-            className="flex-1 text-left text-sm font-semibold truncate transition-opacity hover:opacity-80"
+            className="flex-1 text-left text-sm font-semibold truncate hover:opacity-75 transition-opacity"
             style={{ color: accent }}
+            title="Click to rename"
           >
             {group.name}
             <span className="ml-2 text-xs font-normal text-gray-400">
@@ -226,10 +228,12 @@ export default function GroupSection({ group, colorIdx }: Props) {
         {/* Delete group */}
         <button
           onClick={() => setConfirmDelete(true)}
-          className="text-gray-300 hover:text-red-500 opacity-0 group-hover/header:opacity-100 transition-opacity text-xs px-1"
+          className="shrink-0 opacity-0 group-hover/header:opacity-100 transition-all duration-150 p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50"
           title="Delete group"
         >
-          🗑
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+          </svg>
         </button>
       </div>
 
@@ -245,12 +249,12 @@ export default function GroupSection({ group, colorIdx }: Props) {
                 ))}
               </colgroup>
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/60">
+                <tr className="border-b border-gray-100 bg-gray-50/50">
                   <th className="w-8" />
                   {COL_HEADERS.map((h) => (
                     <th
                       key={h.label}
-                      className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide"
+                      className="px-3 py-2 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider"
                     >
                       {h.label}
                     </th>
@@ -271,9 +275,9 @@ export default function GroupSection({ group, colorIdx }: Props) {
                   <tr>
                     <td
                       colSpan={COL_HEADERS.length + 1}
-                      className="px-4 py-4 text-center text-xs text-gray-400"
+                      className="px-4 py-5 text-center text-xs text-gray-300"
                     >
-                      No tasks — add one below
+                      No tasks yet — add one below
                     </td>
                   </tr>
                 )}
@@ -285,9 +289,12 @@ export default function GroupSection({ group, colorIdx }: Props) {
           <div className="border-t border-gray-100 px-3 py-2">
             <button
               onClick={() => addTask(group.id)}
-              className="text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 px-3 py-1.5 rounded-md transition-colors w-full text-left"
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 px-3 py-1.5 rounded-md transition-all duration-150 w-full text-left group/add"
             >
-              + Add Task
+              <svg className="w-3.5 h-3.5 transition-transform duration-150 group-hover/add:scale-110" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Add Task
             </button>
           </div>
         </>

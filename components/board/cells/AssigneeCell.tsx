@@ -52,19 +52,22 @@ export default function AssigneeCell({ task, onUpdate }: Props) {
       <button
         ref={triggerRef}
         onClick={handleOpen}
-        className="flex items-center gap-1.5 text-xs hover:bg-gray-100 px-2 py-1 rounded-md transition-colors w-full text-left"
+        className="flex items-center gap-1.5 text-xs hover:bg-gray-100 px-2 py-1 rounded-md transition-all duration-100 w-full text-left group/assignee"
       >
         {assignee ? (
           <>
-            <span className="w-6 h-6 rounded-full bg-brand-200 text-brand-800 flex items-center justify-center text-xs font-semibold shrink-0 uppercase">
+            <span className="w-5 h-5 rounded-full bg-brand-200 text-brand-800 flex items-center justify-center text-[10px] font-bold shrink-0 uppercase ring-1 ring-brand-300/50">
               {(assignee.full_name ?? assignee.email)[0]}
             </span>
-            <span className="truncate text-gray-700">
+            <span className="truncate text-gray-700 flex-1">
               {assignee.full_name ?? assignee.email}
             </span>
+            <svg className="w-3 h-3 text-gray-300 shrink-0 opacity-0 group-hover/assignee:opacity-100 transition-opacity" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
           </>
         ) : (
-          <span className="text-gray-300 italic">Unassigned</span>
+          <span className="text-gray-300 italic hover:text-gray-500 transition-colors">Unassigned</span>
         )}
       </button>
 

@@ -31,13 +31,20 @@ export default function TitleCell({ task, expanded, onToggleExpand, onUpdate }: 
   return (
     <td className="px-3 py-2 min-w-[280px]">
       <div className="flex items-center gap-1.5">
-        {/* Description expand toggle */}
         <button
           onClick={onToggleExpand}
-          className="shrink-0 text-gray-300 hover:text-gray-500 text-xs w-4 h-4 flex items-center justify-center transition-colors"
+          className="shrink-0 w-5 h-5 flex items-center justify-center text-gray-300 hover:text-brand-500 hover:bg-brand-50 rounded transition-all duration-100"
           title="Toggle description"
         >
-          {expanded ? "▼" : "▶"}
+          {expanded ? (
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          ) : (
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          )}
         </button>
 
         {editing ? (
@@ -50,12 +57,13 @@ export default function TitleCell({ task, expanded, onToggleExpand, onUpdate }: 
               if (e.key === "Enter") save();
               if (e.key === "Escape") { setEditing(false); setVal(task.title); }
             }}
-            className="flex-1 text-sm bg-white border border-brand-300 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-400"
+            className="flex-1 text-sm bg-white border border-brand-300 rounded-md px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 transition-shadow"
           />
         ) : (
           <button
             onClick={startEdit}
-            className="flex-1 text-left text-sm text-gray-800 hover:text-brand-700 truncate font-medium"
+            className="flex-1 text-left text-sm text-gray-800 hover:text-brand-700 truncate font-medium transition-colors"
+            title="Click to edit"
           >
             {task.title}
           </button>
