@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/store";
@@ -15,7 +15,7 @@ function formatMeetingTime(meeting: Meeting): string {
 }
 
 export default function UpcomingMeetingsWidget() {
-  const supabase = createClient();
+  const supabase = useRef(createClient()).current;
   const contributor = useAuthStore((s) => s.contributor);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
 
@@ -51,7 +51,7 @@ export default function UpcomingMeetingsWidget() {
       setMeetings((data as Meeting[]) ?? []);
     }
     fetchMeetings();
-  }, [contributor?.id, supabase]);
+  }, [contributor, supabase]);
 
   if (meetings.length === 0) return null;
 

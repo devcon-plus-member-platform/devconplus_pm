@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
@@ -257,10 +258,13 @@ export default function BugDetailPanel({ bug, contributors, onUpdate, onClose }:
               <div key={path} className="relative group/img">
                 {signedUrls[path] ? (
                   <a href={signedUrls[path]} target="_blank" rel="noopener noreferrer">
-                    <img
+                    <Image
                       src={signedUrls[path]}
                       alt="screenshot"
+                      width={80}
+                      height={80}
                       className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                      unoptimized
                     />
                   </a>
                 ) : (

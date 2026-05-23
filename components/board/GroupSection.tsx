@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   useSortable,
   SortableContext,
@@ -89,6 +90,14 @@ export default function GroupSection({ group, colorIdx }: Props) {
   const [editingName, setEditingName] = useState(false);
   const [nameVal, setNameVal] = useState(group.name);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setExpanded(false); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [expanded]);
 
   const tasks = tasksByGroup[group.id] ?? [];
   const collapsed = collapsedGroups.has(group.id);
@@ -225,6 +234,17 @@ export default function GroupSection({ group, colorIdx }: Props) {
           </button>
         )}
 
+        {/* Expand group */}
+        <button
+          onClick={() => setExpanded(true)}
+          className="shrink-0 opacity-0 group-hover/header:opacity-100 transition-all duration-150 p-1 rounded text-gray-300 hover:text-brand-500 hover:bg-brand-50"
+          title="Expand group"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+          </svg>
+        </button>
+
         {/* Delete group */}
         <button
           onClick={() => setConfirmDelete(true)}
@@ -311,6 +331,93 @@ export default function GroupSection({ group, colorIdx }: Props) {
           }}
           onCancel={() => setConfirmDelete(false)}
         />
+      )}
+
+      {expanded && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-white"
+          role="dialog"
+          aria-modal="true"
+        >
+          {/* Modal header */}
+          <div
+            className="flex items-center gap-3 px-6 py-3 border-b border-gray-200 shrink-0"
+            style={{ borderLeft: `4px solid ${accent}`, backgroundColor: `${accent}0d` }}
+          >
+            <span className="text-sm font-semibold" style={{ color: accent }}>
+              {group.name}
+            </span>
+            <span className="text-xs text-gray-400">
+              {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
+            </span>
+            <div className="flex-1" />
+            <button
+              onClick={() => setExpanded(false)}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+              title="Close (Esc)"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Modal body */}
+          <div className="flex-1 overflow-auto">
+            <table className="w-full text-sm border-collapse">
+              <colgroup>
+                <col className="w-8" />
+                {COL_HEADERS.map((h) => (
+                  <col key={h.label} className={h.className} />
+                ))}
+              </colgroup>
+              <thead className="sticky top-0 z-10 bg-white border-b border-gray-100">
+                <tr>
+                  <th className="w-8" />
+                  {COL_HEADERS.map((h) => (
+                    <th
+                      key={h.label}
+                      className="px-3 py-2.5 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider"
+                    >
+                      {h.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <SortableContext
+                  items={tasks.map((t) => t.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {tasks.map((task) => (
+                    <TaskRow key={task.id} task={task} groupId={group.id} />
+                  ))}
+                </SortableContext>
+                {tasks.length === 0 && (
+                  <tr>
+                    <td colSpan={COL_HEADERS.length + 1} className="px-4 py-10 text-center text-xs text-gray-300">
+                      No tasks in this group yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Modal footer — add task */}
+          <div className="border-t border-gray-100 px-6 py-3 shrink-0">
+            <button
+              onClick={() => addTask(group.id)}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 px-3 py-1.5 rounded-md transition-all duration-150 group/add"
+            >
+              <svg className="w-3.5 h-3.5 transition-transform duration-150 group-hover/add:scale-110" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Add Task
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

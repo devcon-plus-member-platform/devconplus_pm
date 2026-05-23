@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { isOverdue, formatDate } from "@/lib/utils";
+import { isAdmin } from "@/lib/permissions";
 import BugSummaryWidget from "./BugSummaryWidget";
 import UpcomingMeetingsWidget from "./UpcomingMeetingsWidget";
 import MilestonesWidget from "./MilestonesWidget";
@@ -45,10 +46,11 @@ export default function DashboardOverview({ tasks, currentContributor, selectedP
     today.setHours(0, 0, 0, 0); // normalize to start of today so due-today tasks are included
     const sevenDays = new Date(today);
     sevenDays.setDate(today.getDate() + 7);
+    const adminView = isAdmin(currentContributor.email);
 
     return tasks
       .filter((t) => {
-        if (t.assignee_id !== currentContributor.id) return false;
+        if (!adminView && t.assignee_id !== currentContributor.id) return false;
         if (t.status === "Done") return false;
         if (!t.due_date) return false;
         const d = new Date(t.due_date);
@@ -88,7 +90,7 @@ export default function DashboardOverview({ tasks, currentContributor, selectedP
       {currentContributor && (
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-            My tasks due this week
+            {isAdmin(currentContributor.email) ? "All tasks due this week" : "My tasks due this week"}
           </p>
           {myTasksThisWeek.length === 0 ? (
             <p className="text-xs text-gray-400">No tasks due in the next 7 days. 🎉</p>

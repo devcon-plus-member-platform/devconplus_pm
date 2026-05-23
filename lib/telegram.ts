@@ -22,6 +22,41 @@ interface TaskRow {
   group?: { name: string } | null;
 }
 
+interface BoardTaskRow {
+  id: string;
+  title: string;
+  status: string;
+  due_date: string | null;
+  project: { name: string } | null;
+  assignee: { id: string; full_name: string | null; email: string } | null;
+}
+
+interface QATestRow {
+  id: string;
+  title: string;
+  status: string;
+  category: string | null;
+  bug_report: string | null;
+  project: { name: string } | null;
+  assignee: { full_name: string | null; email: string } | null;
+}
+
+interface BugRow {
+  id: string;
+  title: string;
+  severity: string;
+  status: string;
+  project: { name: string } | null;
+  assignee: { full_name: string | null; email: string } | null;
+}
+
+interface ContributorRow2 {
+  id: string;
+  full_name: string | null;
+  email: string;
+  role: { name: string; color: string | null } | null;
+}
+
 interface MeetingRow {
   id: string;
   title: string;
@@ -98,17 +133,115 @@ function registerHandlers(bot: Bot) {
   bot.command("help", (ctx) => {
     ctx.reply(
       "📖 *DEVCON\\+ PM Bot Commands*\n\n" +
-        "/mytasks — View your currently assigned tasks\n" +
-        "/deadlines — Tasks due in the next 7 days\n" +
-        "/status <keyword> — Search your tasks and update status\n" +
+        "*Board & Tasks*\n" +
+        "/board — Full task board grouped by assignee\n" +
+        "/mytasks — Your currently assigned tasks\n" +
+        "/deadlines — Your tasks due in the next 7 days\n" +
+        "/status <keyword> — Search & update a task status\n" +
+        "/standup — Your active tasks for standup\n\n" +
+        "*QA & Bugs*\n" +
+        "/qa — QA test summary by project\n" +
+        "/bugs — Open & in\\-progress bugs by severity\n\n" +
+        "*Team & Planning*\n" +
         "/meetings — Your upcoming meetings this week\n" +
-        "/standup — Get a quick standup summary\n" +
-        "/milestones — Current milestone status and progress\n" +
-        "/essentials [term] — Browse or search the team essentials wiki\n" +
-        "/announce <message> — \\(PM only\\) Send announcement to all contributors\n" +
+        "/milestones — Current milestone status & progress\n" +
+        "/team — Team members and roles\n" +
+        "/essentials [term] — Browse or search the essentials wiki\n\n" +
+        "*PM Only*\n" +
+        "/announce <message> — Send announcement to all contributors\n\n" +
         "/help — Show this message",
       { parse_mode: "MarkdownV2" }
     );
+  });
+
+  // /board — all open tasks grouped by assignee
+  bot.command("board", async (ctx) => {
+    const username = ctx.from?.username;
+    if (!username) return ctx.reply("Could not determine your Telegram username.");
+
+    const contributor = await getContributor(username).catch(() => null);
+    if (!contributor) return ctx.reply(notLinkedMessage());
+
+    const supabase = createServiceRoleClient();
+    const { data: tasks, error } = await supabase
+      .from("tasks")
+      .select("id,title,status,due_date,project:projects(name),assignee:contributors(id,full_name,email)")
+      .not("status", "eq", "Done")
+      .order("due_date", { ascending: true, nullsFirst: false });
+
+    if (error) {
+      console.error("[/board]", error);
+      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+    }
+
+    const rows = (tasks ?? []) as unknown as BoardTaskRow[];
+
+    if (rows.length === 0) {
+      return ctx.reply("No open tasks on the board right now. 🎉");
+    }
+
+    // Group by assignee
+    const grouped = new Map<string, { name: string; tasks: BoardTaskRow[] }>();
+    const unassigned: BoardTaskRow[] = [];
+
+    for (const task of rows) {
+      if (!task.assignee) {
+        unassigned.push(task);
+      } else {
+        const key = task.assignee.id;
+        if (!grouped.has(key)) {
+          grouped.set(key, { name: task.assignee.full_name ?? task.assignee.email, tasks: [] });
+        }
+        grouped.get(key)!.tasks.push(task);
+      }
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const formatTaskLine = (t: BoardTaskRow): string => {
+      const due = t.due_date ? `Due ${formatDue(t.due_date)}` : "No due date";
+      const isOverdue = t.due_date && new Date(new Date(t.due_date).toDateString()) < today;
+      const flag = isOverdue ? " ⚠️" : "";
+      return `  • ${t.title} — ${t.status} — ${due}${flag}`;
+    };
+
+    const sections: string[] = [];
+
+    for (const { name, tasks: assigneeTasks } of Array.from(grouped.values())) {
+      const lines = assigneeTasks.slice(0, 10).map(formatTaskLine);
+      const more = assigneeTasks.length > 10 ? `\n  …+${assigneeTasks.length - 10} more` : "";
+      sections.push(`👤 ${name} (${assigneeTasks.length})\n${lines.join("\n")}${more}`);
+    }
+
+    if (unassigned.length > 0) {
+      const lines = unassigned.slice(0, 5).map((t) => {
+        const project = t.project?.name ? ` [${t.project.name}]` : "";
+        return `  • ${t.title}${project} — ${t.status}`;
+      });
+      const more = unassigned.length > 5 ? `\n  …+${unassigned.length - 5} more` : "";
+      sections.push(`📭 Unassigned (${unassigned.length})\n${lines.join("\n")}${more}`);
+    }
+
+    const header = `📋 Task Board — ${rows.length} open task${rows.length !== 1 ? "s" : ""}\n\n`;
+
+    // Send in chunks if needed (Telegram 4096 char limit)
+    const chunks: string[] = [];
+    let current = header;
+    for (const section of sections) {
+      const candidate = current === header ? header + section : current + "\n\n" + section;
+      if (candidate.length > 4000) {
+        chunks.push(current);
+        current = section;
+      } else {
+        current = candidate;
+      }
+    }
+    chunks.push(current);
+
+    for (const chunk of chunks) {
+      await ctx.reply(chunk);
+    }
   });
 
   // /mytasks
@@ -539,6 +672,201 @@ function registerHandlers(bot: Bot) {
     const suffix = matches.length > 15 ? `\n\n…and ${matches.length - 15} more. Check the dashboard for the full list.` : "";
     await ctx.reply(`🔍 Essentials matching "${term}":\n\n${lines.join("\n\n")}${suffix}`);
   });
+  // /qa — QA test summary grouped by project
+  bot.command("qa", async (ctx) => {
+    const username = ctx.from?.username;
+    if (!username) return ctx.reply("Could not determine your Telegram username.");
+
+    const contributor = await getContributor(username).catch(() => null);
+    if (!contributor) return ctx.reply(notLinkedMessage());
+
+    const supabase = createServiceRoleClient();
+    const { data: tests, error } = await supabase
+      .from("qa_tests")
+      .select("id,title,status,category,bug_report,project:projects(name),assignee:contributors(full_name,email)")
+      .order("status");
+
+    if (error) {
+      console.error("[/qa]", error);
+      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+    }
+
+    const rows = (tests ?? []) as unknown as QATestRow[];
+
+    if (rows.length === 0) {
+      return ctx.reply("No QA tests found. Add some on the QA page.");
+    }
+
+    // Group by project
+    const byProject = new Map<string, { name: string; tests: QATestRow[] }>();
+    for (const t of rows) {
+      const name = t.project?.name ?? "Unknown Project";
+      if (!byProject.has(name)) byProject.set(name, { name, tests: [] });
+      byProject.get(name)!.tests.push(t);
+    }
+
+    const STATUS_EMOJI: Record<string, string> = {
+      Pass: "✅",
+      Fail: "❌",
+      Blocked: "🚫",
+      "Not Run": "⬜",
+    };
+
+    const sections: string[] = [];
+    for (const { name, tests: projectTests } of Array.from(byProject.values())) {
+      const counts = { Pass: 0, Fail: 0, Blocked: 0, "Not Run": 0 };
+      for (const t of projectTests) {
+        if (t.status in counts) counts[t.status as keyof typeof counts]++;
+      }
+      const summary = Object.entries(counts)
+        .filter(([, n]) => n > 0)
+        .map(([s, n]) => `${STATUS_EMOJI[s]} ${s}: ${n}`)
+        .join("  ");
+
+      // Show failing/blocked tests explicitly
+      const flagged = projectTests.filter((t: QATestRow) => t.status === "Fail" || t.status === "Blocked");
+      const flaggedLines = flagged.slice(0, 5).map((t: QATestRow) => {
+        const emoji = STATUS_EMOJI[t.status];
+        const cat = t.category ? ` [${t.category}]` : "";
+        return `  ${emoji} ${t.title}${cat}`;
+      });
+      const more = flagged.length > 5 ? `\n  …+${flagged.length - 5} more` : "";
+
+      sections.push(
+        `📁 ${name} — ${projectTests.length} test${projectTests.length !== 1 ? "s" : ""}\n` +
+        summary +
+        (flaggedLines.length > 0 ? "\n" + flaggedLines.join("\n") + more : "")
+      );
+    }
+
+    const total = rows.length;
+    const passed = rows.filter((t) => t.status === "Pass").length;
+    const failed = rows.filter((t) => t.status === "Fail").length;
+    const blocked = rows.filter((t) => t.status === "Blocked").length;
+    const header = `🧪 QA Summary — ${total} tests | ✅ ${passed} passed | ❌ ${failed} failed | 🚫 ${blocked} blocked\n\n`;
+
+    const chunks: string[] = [];
+    let current = header;
+    for (const section of sections) {
+      const candidate = current === header ? header + section : current + "\n\n" + section;
+      if (candidate.length > 4000) { chunks.push(current); current = section; }
+      else current = candidate;
+    }
+    chunks.push(current);
+    for (const chunk of chunks) await ctx.reply(chunk);
+  });
+
+  // /bugs — open and in-progress bugs grouped by severity
+  bot.command("bugs", async (ctx) => {
+    const username = ctx.from?.username;
+    if (!username) return ctx.reply("Could not determine your Telegram username.");
+
+    const contributor = await getContributor(username).catch(() => null);
+    if (!contributor) return ctx.reply(notLinkedMessage());
+
+    const supabase = createServiceRoleClient();
+    const { data: bugs, error } = await supabase
+      .from("bugs")
+      .select("id,title,severity,status,project:projects(name),assignee:contributors!assigned_to(full_name,email)")
+      .in("status", ["Open", "In Progress"])
+      .order("severity")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("[/bugs]", error);
+      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+    }
+
+    const rows = (bugs ?? []) as unknown as BugRow[];
+
+    if (rows.length === 0) {
+      return ctx.reply("No open or in-progress bugs right now. 🎉");
+    }
+
+    const SEVERITY_EMOJI: Record<string, string> = {
+      Critical: "🔴",
+      High: "🟠",
+      Medium: "🟡",
+      Low: "🔵",
+    };
+
+    const SEVERITY_ORDER = ["Critical", "High", "Medium", "Low"];
+    const bySeverity = new Map<string, BugRow[]>();
+    for (const sev of SEVERITY_ORDER) bySeverity.set(sev, []);
+    for (const b of rows) {
+      if (!bySeverity.has(b.severity)) bySeverity.set(b.severity, []);
+      bySeverity.get(b.severity)!.push(b);
+    }
+
+    const sections: string[] = [];
+    for (const sev of SEVERITY_ORDER) {
+      const sevBugs = bySeverity.get(sev) ?? [];
+      if (sevBugs.length === 0) continue;
+      const lines = sevBugs.slice(0, 8).map((b) => {
+        const project = b.project?.name ? ` [${b.project.name}]` : "";
+        const assignee = b.assignee?.full_name ?? b.assignee?.email ?? "Unassigned";
+        return `  • ${b.title}${project} — ${b.status} — ${assignee}`;
+      });
+      const more = sevBugs.length > 8 ? `\n  …+${sevBugs.length - 8} more` : "";
+      sections.push(`${SEVERITY_EMOJI[sev]} ${sev} (${sevBugs.length})\n${lines.join("\n")}${more}`);
+    }
+
+    const header = `🐛 Open Bugs — ${rows.length} total\n\n`;
+    const chunks: string[] = [];
+    let current = header;
+    for (const section of sections) {
+      const candidate = current === header ? header + section : current + "\n\n" + section;
+      if (candidate.length > 4000) { chunks.push(current); current = section; }
+      else current = candidate;
+    }
+    chunks.push(current);
+    for (const chunk of chunks) await ctx.reply(chunk);
+  });
+
+  // /team — list all contributors with roles
+  bot.command("team", async (ctx) => {
+    const username = ctx.from?.username;
+    if (!username) return ctx.reply("Could not determine your Telegram username.");
+
+    const contributor = await getContributor(username).catch(() => null);
+    if (!contributor) return ctx.reply(notLinkedMessage());
+
+    const supabase = createServiceRoleClient();
+    const { data, error } = await supabase
+      .from("contributors")
+      .select("id,full_name,email,role:roles(name,color)")
+      .is("deleted_at", null)
+      .order("full_name");
+
+    if (error) {
+      console.error("[/team]", error);
+      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+    }
+
+    const members = (data ?? []) as unknown as ContributorRow2[];
+
+    if (members.length === 0) {
+      return ctx.reply("No contributors found.");
+    }
+
+    // Group by role
+    const byRole = new Map<string, ContributorRow2[]>();
+    for (const m of members) {
+      const role = m.role?.name ?? "No Role";
+      if (!byRole.has(role)) byRole.set(role, []);
+      byRole.get(role)!.push(m);
+    }
+
+    const sections: string[] = [];
+    for (const [role, roleMembers] of Array.from(byRole.entries())) {
+      const lines = roleMembers.map((m: ContributorRow2) => `  • ${m.full_name ?? m.email}`);
+      sections.push(`👥 ${role} (${roleMembers.length})\n${lines.join("\n")}`);
+    }
+
+    const header = `🏢 DEVCON+ Team — ${members.length} contributor${members.length !== 1 ? "s" : ""}\n\n`;
+    await ctx.reply(header + sections.join("\n\n"));
+  });
+
   bot.on("message:text", (ctx) => {
     if (ctx.message.text?.startsWith("/")) {
       ctx.reply("Unknown command. Type /help to see what I can do.");
