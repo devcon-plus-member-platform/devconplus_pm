@@ -1,14 +1,15 @@
-import { Resend } from "resend";
+import { sendMail } from "@/lib/mailer";
 
-let _resend: Resend | null = null;
+// Thin shim — keeps all existing call sites unchanged
+const resend = {
+  emails: {
+    send: (opts: { from: string; to: string; subject: string; html: string }) =>
+      sendMail({ to: opts.to, subject: opts.subject, html: opts.html }),
+  },
+};
 
-function getResendClient(): Resend {
-  if (!_resend) {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) throw new Error("RESEND_API_KEY is not set");
-    _resend = new Resend(apiKey);
-  }
-  return _resend;
+function getResendClient() {
+  return resend;
 }
 
 // ─── Shared layout wrapper ─────────────────────────────────────────────────────
@@ -44,7 +45,7 @@ export async function sendTaskAssignedEmail(opts: TaskAssignedEmailOptions): Pro
     : "Not set";
 
   await resend.emails.send({
-    from: "DEVCON+ PM <onboarding@resend.dev>",
+    from: process.env.RESEND_FROM_DOMAIN ? `DEVCON+ PM <noreply@${process.env.RESEND_FROM_DOMAIN}>` : "DEVCON+ PM <onboarding@resend.dev>",
     to: opts.to,
     subject: `You've been assigned: ${opts.taskTitle}`,
     html: emailWrapper(`
@@ -86,7 +87,7 @@ export async function sendAnnouncementEmail(opts: AnnouncementEmailOptions): Pro
     .join("<br/>");
 
   await resend.emails.send({
-    from: "DEVCON+ PM <onboarding@resend.dev>",
+    from: process.env.RESEND_FROM_DOMAIN ? `DEVCON+ PM <noreply@${process.env.RESEND_FROM_DOMAIN}>` : "DEVCON+ PM <onboarding@resend.dev>",
     to: opts.to,
     subject: `[DEVCON+ PM] ${opts.announcementTitle}`,
     html: emailWrapper(`
@@ -116,7 +117,7 @@ export async function sendBugAssignedEmail(opts: BugAssignedEmailOptions): Promi
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
   await resend.emails.send({
-    from: "DEVCON+ PM <onboarding@resend.dev>",
+    from: process.env.RESEND_FROM_DOMAIN ? `DEVCON+ PM <noreply@${process.env.RESEND_FROM_DOMAIN}>` : "DEVCON+ PM <onboarding@resend.dev>",
     to: opts.to,
     subject: `[DEVCON+ PM] Bug assigned to you: ${opts.bugTitle}`,
     html: emailWrapper(`
@@ -175,7 +176,7 @@ export async function sendMeetingConfirmationEmail(
     opts.recurrence === "None" ? "One-time" : opts.recurrence;
 
   await resend.emails.send({
-    from: "DEVCON+ PM <onboarding@resend.dev>",
+    from: process.env.RESEND_FROM_DOMAIN ? `DEVCON+ PM <noreply@${process.env.RESEND_FROM_DOMAIN}>` : "DEVCON+ PM <onboarding@resend.dev>",
     to: opts.to,
     subject: `📅 Meeting scheduled: ${opts.title}`,
     html: emailWrapper(`
@@ -215,7 +216,7 @@ export async function sendMeetingCancellationEmail(
   });
 
   await resend.emails.send({
-    from: "DEVCON+ PM <onboarding@resend.dev>",
+    from: process.env.RESEND_FROM_DOMAIN ? `DEVCON+ PM <noreply@${process.env.RESEND_FROM_DOMAIN}>` : "DEVCON+ PM <onboarding@resend.dev>",
     to: opts.to,
     subject: `❌ Meeting cancelled: ${opts.title}`,
     html: emailWrapper(`
@@ -246,7 +247,7 @@ export async function sendMeetingReminderEmail(
   const resend = getResendClient();
 
   await resend.emails.send({
-    from: "DEVCON+ PM <onboarding@resend.dev>",
+    from: process.env.RESEND_FROM_DOMAIN ? `DEVCON+ PM <noreply@${process.env.RESEND_FROM_DOMAIN}>` : "DEVCON+ PM <onboarding@resend.dev>",
     to: opts.to,
     subject: `⏰ Meeting starting soon: ${opts.title}`,
     html: emailWrapper(`
@@ -278,7 +279,7 @@ export async function sendActivityAlertEmail(opts: ActivityAlertEmailOptions): P
     opts.action === "created" ? "#22c55e" : "#2234b0";
 
   await resend.emails.send({
-    from: "DEVCON+ PM <onboarding@resend.dev>",
+    from: process.env.RESEND_FROM_DOMAIN ? `DEVCON+ PM <noreply@${process.env.RESEND_FROM_DOMAIN}>` : "DEVCON+ PM <onboarding@resend.dev>",
     to: opts.to,
     subject: `[DEVCON+ PM] ${opts.actor} ${opts.action} ${opts.entity}: ${opts.entityTitle}`,
     html: emailWrapper(`
@@ -309,7 +310,7 @@ export async function sendWelcomeEmail(opts: WelcomeEmailOptions): Promise<void>
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
   await resend.emails.send({
-    from: "DEVCON+ PM <onboarding@resend.dev>",
+    from: process.env.RESEND_FROM_DOMAIN ? `DEVCON+ PM <noreply@${process.env.RESEND_FROM_DOMAIN}>` : "DEVCON+ PM <onboarding@resend.dev>",
     to: opts.to,
     subject: "You've been added to DEVCON+ PM",
     html: emailWrapper(`
@@ -349,7 +350,7 @@ export async function sendMilestoneAchievedEmail(
   });
 
   await resend.emails.send({
-    from: "DEVCON+ PM <onboarding@resend.dev>",
+    from: process.env.RESEND_FROM_DOMAIN ? `DEVCON+ PM <noreply@${process.env.RESEND_FROM_DOMAIN}>` : "DEVCON+ PM <onboarding@resend.dev>",
     to: opts.to,
     subject: `🎉 Milestone Achieved: ${opts.milestoneTitle}`,
     html: emailWrapper(`
