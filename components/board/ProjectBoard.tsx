@@ -59,8 +59,8 @@ export default function ProjectBoard({ project, loading }: Props) {
           items={groups.map((g) => g.id)}
           strategy={verticalListSortingStrategy}
         >
-          {groups.map((group) => (
-            <GroupSection key={group.id} group={group} />
+          {groups.map((group, idx) => (
+            <GroupSection key={group.id} group={group} colorIdx={idx} />
           ))}
         </SortableContext>
 

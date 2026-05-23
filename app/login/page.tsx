@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/store";
+import { isAdmin, ADMIN_EMAIL } from "@/lib/permissions";
 import type { Contributor } from "@/types";
 
 export default function LoginPage() {
@@ -32,20 +33,35 @@ export default function LoginPage() {
       return;
     }
 
-    const { data: contributor, error: contributorError } = await supabase
+    const userEmail = authData.user.email!;
+
+    const { data: contributor } = await supabase
       .from("contributors")
       .select("*, role:roles(*)")
-      .eq("email", authData.user.email!)
+      .eq("email", userEmail)
       .is("deleted_at", null)
       .single();
 
-    if (contributorError || !contributor) {
-      await supabase.auth.signOut();
-      router.push("/access-denied");
-      return;
+    if (!contributor) {
+      if (!isAdmin(userEmail)) {
+        await supabase.auth.signOut();
+        router.push("/access-denied");
+        return;
+      }
+      // Admin bypass — allow login even without a contributor record
+      setContributor({
+        id: "admin",
+        email: ADMIN_EMAIL,
+        full_name: "Admin",
+        role_id: null,
+        telegram_username: null,
+        deleted_at: null,
+        created_at: new Date().toISOString(),
+      });
+    } else {
+      setContributor(contributor as Contributor);
     }
 
-    setContributor(contributor as Contributor);
     router.push("/dashboard");
   }
 

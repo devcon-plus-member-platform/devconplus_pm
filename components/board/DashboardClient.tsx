@@ -24,6 +24,7 @@ import ProjectBoard from "./ProjectBoard";
 import DashboardOverview from "./DashboardOverview";
 import NewProjectModal from "./modals/NewProjectModal";
 import { useAuthStore } from "@/lib/store";
+import { isAdmin } from "@/lib/permissions";
 
 interface Props {
   initialProjects: Project[];
@@ -46,6 +47,19 @@ export default function DashboardClient({ initialProjects, contributors }: Props
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
+
+  const currentContributor = useAuthStore((s) => s.contributor);
+
+  function logActivity(action: string, entity: string, entityTitle: string) {
+    const actorName =
+      currentContributor?.full_name ?? currentContributor?.email ?? "Guest";
+    const actorEmail = currentContributor?.email ?? null;
+    fetch("/api/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, entity, entityTitle, actorName, actorEmail, page: "PM Board" }),
+    }).catch(console.error);
+  }
 
   // ─── Load board data ────────────────────────────────────────────────────────
   const loadBoardData = useCallback(
@@ -179,16 +193,20 @@ export default function DashboardClient({ initialProjects, contributors }: Props
     if (error || !data) return;
     setGroups((prev) => [...prev, data as Group]);
     setTasksByGroup((prev) => ({ ...prev, [data.id]: [] }));
+    logActivity("created", "group", name);
   }
 
   async function updateGroup(id: string, name: string) {
-    setGroups((prev) => prev.map((g) => (g.id === id ? { ...g, name } : g)));
+    const prev = groups.find((g) => g.id === id);
+    setGroups((p) => p.map((g) => (g.id === id ? { ...g, name } : g)));
     await supabase.from("groups").update({ name }).eq("id", id);
+    if (prev && prev.name !== name) logActivity("renamed", "group", name);
   }
 
   async function deleteGroup(id: string) {
     const prevGroups = groups;
     const prevTasks = tasksByGroup;
+    const target = groups.find((g) => g.id === id);
     setGroups((prev) => prev.filter((g) => g.id !== id));
     setTasksByGroup((prev) => {
       const next = { ...prev };
@@ -199,6 +217,8 @@ export default function DashboardClient({ initialProjects, contributors }: Props
     if (error) {
       setGroups(prevGroups);
       setTasksByGroup(prevTasks);
+    } else if (target) {
+      logActivity("deleted", "group", target.name);
     }
   }
 
@@ -239,7 +259,13 @@ export default function DashboardClient({ initialProjects, contributors }: Props
       ...prev,
       [groupId]: [...(prev[groupId] ?? []), data as Task],
     }));
+    logActivity("created", "task", "New Task");
   }
+
+  const SIGNIFICANT_TASK_FIELDS = new Set([
+    "title", "status", "assignee_id", "group_id", "due_date", "description", "pr_link",
+    "timeline_start", "timeline_end",
+  ]);
 
   async function updateTask(
     id: string,
@@ -267,7 +293,6 @@ export default function DashboardClient({ initialProjects, contributors }: Props
       .eq("id", id);
 
     if (error && prevTask) {
-      // Revert on error
       setTasksByGroup((prev) => ({
         ...prev,
         [groupId]: (prev[groupId] ?? []).map((t) =>
@@ -275,6 +300,23 @@ export default function DashboardClient({ initialProjects, contributors }: Props
         ),
       }));
       return;
+    }
+
+    // Determine action label for meaningful field changes
+    const changedKeys = Object.keys(updates).filter((k) =>
+      SIGNIFICANT_TASK_FIELDS.has(k)
+    );
+    if (changedKeys.length > 0) {
+      const taskTitle = (updates.title ?? prevTask?.title ?? "task");
+      const action =
+        updates.group_id !== undefined && prevTask && updates.group_id !== prevTask.group_id
+          ? "moved"
+          : updates.status !== undefined && prevTask && updates.status !== prevTask.status
+          ? "updated status of"
+          : updates.assignee_id !== undefined && prevTask && updates.assignee_id !== prevTask.assignee_id
+          ? "assigned"
+          : "updated";
+      logActivity(action, "task", taskTitle as string);
     }
 
     // Email notify on assignee change
@@ -301,12 +343,17 @@ export default function DashboardClient({ initialProjects, contributors }: Props
 
   async function deleteTask(id: string, groupId: string) {
     const prev = tasksByGroup[groupId] ?? [];
+    const target = prev.find((t) => t.id === id);
     setTasksByGroup((prevState) => ({
       ...prevState,
       [groupId]: prevState[groupId].filter((t) => t.id !== id),
     }));
     const { error } = await supabase.from("tasks").delete().eq("id", id);
-    if (error) setTasksByGroup((prevState) => ({ ...prevState, [groupId]: prev }));
+    if (error) {
+      setTasksByGroup((prevState) => ({ ...prevState, [groupId]: prev }));
+    } else if (target) {
+      logActivity("deleted", "task", target.title);
+    }
   }
 
   async function reorderTasks(
@@ -402,11 +449,11 @@ export default function DashboardClient({ initialProjects, contributors }: Props
     if (error || !data) return;
     setProjects((prev) => [...prev, data as Project]);
     setSelectedProjectId(data.id);
+    logActivity("created", "project", name);
   }
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
-  const currentContributor = useAuthStore((s) => s.contributor);
   const allTasks = Object.values(tasksByGroup).flat();
 
   return (

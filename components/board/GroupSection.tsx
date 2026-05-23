@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   useSortable,
   SortableContext,
@@ -22,11 +22,63 @@ const COL_HEADERS = [
   { label: "PR Link",    className: "min-w-[160px]"           },
 ];
 
-interface Props {
-  group: Group;
+const COLOR_PALETTE = [
+  { label: "Blue",    value: "#3b82f6" },
+  { label: "Violet",  value: "#8b5cf6" },
+  { label: "Indigo",  value: "#6366f1" },
+  { label: "Teal",    value: "#14b8a6" },
+  { label: "Emerald", value: "#10b981" },
+  { label: "Lime",    value: "#84cc16" },
+  { label: "Amber",   value: "#f59e0b" },
+  { label: "Orange",  value: "#f97316" },
+  { label: "Red",     value: "#ef4444" },
+  { label: "Rose",    value: "#f43f5e" },
+  { label: "Pink",    value: "#ec4899" },
+  { label: "Cyan",    value: "#06b6d4" },
+];
+
+// Fallback palette when no localStorage entry exists yet
+const DEFAULT_ACCENTS = COLOR_PALETTE.map((c) => c.value);
+
+function storageKey(groupId: string) {
+  return `devcon-group-color-${groupId}`;
 }
 
-export default function GroupSection({ group }: Props) {
+interface Props {
+  group: Group;
+  colorIdx: number;
+}
+
+export default function GroupSection({ group, colorIdx }: Props) {
+  const defaultAccent = DEFAULT_ACCENTS[colorIdx % DEFAULT_ACCENTS.length];
+
+  const [accent, setAccent] = useState(defaultAccent);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  // Hydrate from localStorage after mount (avoids SSR mismatch)
+  useEffect(() => {
+    const saved = localStorage.getItem(storageKey(group.id));
+    if (saved) setAccent(saved);
+  }, [group.id]);
+
+  // Close picker on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+      }
+    };
+    if (pickerOpen) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [pickerOpen]);
+
+  function pickColor(value: string) {
+    setAccent(value);
+    localStorage.setItem(storageKey(group.id), value);
+    setPickerOpen(false);
+  }
+
   const {
     tasksByGroup,
     collapsedGroups,
@@ -43,7 +95,6 @@ export default function GroupSection({ group }: Props) {
   const tasks = tasksByGroup[group.id] ?? [];
   const collapsed = collapsedGroups.has(group.id);
 
-  // Sortable group drag handle
   const {
     attributes,
     listeners,
@@ -69,9 +120,16 @@ export default function GroupSection({ group }: Props) {
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+    <div
+      ref={setNodeRef}
+      style={{ ...style, borderLeft: `4px solid ${accent}` }}
+      className="rounded-xl border border-gray-200 bg-white overflow-hidden"
+    >
       {/* Group header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 border-b border-gray-200 group/header">
+      <div
+        className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-200 group/header"
+        style={{ backgroundColor: `${accent}12` }}
+      >
         {/* Drag handle */}
         <button
           className="text-gray-300 hover:text-gray-500 cursor-grab opacity-0 group-hover/header:opacity-100 transition-opacity shrink-0"
@@ -81,13 +139,60 @@ export default function GroupSection({ group }: Props) {
           ⠿
         </button>
 
-        {/* Collapse toggle */}
+        {/* Collapse / expand toggle */}
         <button
           onClick={() => toggleGroupCollapse(group.id)}
-          className="text-gray-400 hover:text-gray-600 transition-colors shrink-0 text-xs"
+          title={collapsed ? "Expand group" : "Collapse group"}
+          className="text-gray-400 hover:text-gray-700 transition-colors shrink-0 rounded p-0.5 hover:bg-black/5"
         >
-          {collapsed ? "▶" : "▼"}
+          <svg
+            className="w-4 h-4 transition-transform duration-150"
+            style={{ transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)" }}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
         </button>
+
+        {/* Color picker */}
+        <div className="relative shrink-0" ref={pickerRef}>
+          <button
+            onClick={() => setPickerOpen((v) => !v)}
+            title="Change group color"
+            className="w-4 h-4 rounded-full border-2 border-white shadow-sm ring-1 ring-gray-200 hover:ring-gray-400 transition-all"
+            style={{ backgroundColor: accent }}
+          />
+
+          {pickerOpen && (
+            <div className="absolute z-30 top-full left-0 mt-2 p-2 bg-white border border-gray-200 rounded-xl shadow-xl w-[136px]">
+              <p className="text-[10px] text-gray-400 font-medium mb-2 px-0.5">Group color</p>
+              <div className="grid grid-cols-4 gap-1.5">
+                {COLOR_PALETTE.map((c) => (
+                  <button
+                    key={c.value}
+                    title={c.label}
+                    onClick={() => pickColor(c.value)}
+                    className="w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 flex items-center justify-center"
+                    style={{
+                      backgroundColor: c.value,
+                      borderColor: accent === c.value ? "white" : "transparent",
+                      outline: accent === c.value ? `2px solid ${c.value}` : "none",
+                    }}
+                  >
+                    {accent === c.value && (
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Group name */}
         {editingName ? (
@@ -108,7 +213,8 @@ export default function GroupSection({ group }: Props) {
         ) : (
           <button
             onClick={() => setEditingName(true)}
-            className="flex-1 text-left text-sm font-semibold text-gray-700 hover:text-brand-600 truncate"
+            className="flex-1 text-left text-sm font-semibold truncate transition-opacity hover:opacity-80"
+            style={{ color: accent }}
           >
             {group.name}
             <span className="ml-2 text-xs font-normal text-gray-400">
@@ -133,7 +239,7 @@ export default function GroupSection({ group }: Props) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
               <colgroup>
-                <col className="w-8" /> {/* drag + delete */}
+                <col className="w-8" />
                 {COL_HEADERS.map((h) => (
                   <col key={h.label} className={h.className} />
                 ))}

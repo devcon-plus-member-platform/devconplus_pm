@@ -12,7 +12,16 @@ import DueDateCell from "./cells/DueDateCell";
 import AttachmentCell from "./cells/AttachmentCell";
 import PRLinkCell from "./cells/PRLinkCell";
 import ConfirmModal from "./modals/ConfirmModal";
-import type { Task } from "@/types";
+import type { Task, TaskStatus } from "@/types";
+
+const STATUS_STRIPE: Record<TaskStatus, string> = {
+  "Not Started":      "#9ca3af",
+  "In Progress":      "#3b82f6",
+  "Done":             "#22c55e",
+  "Help":             "#f59e0b",
+  "I am Stuck":       "#ef4444",
+  "For Improvements": "#a855f7",
+};
 
 interface Props {
   task: Task;
@@ -50,8 +59,11 @@ export default function TaskRow({ task, groupId }: Props) {
         style={style}
         className="border-b border-gray-100 hover:bg-gray-50/40 group/row"
       >
-        {/* Drag handle + delete */}
-        <td className="w-8 px-1">
+        {/* Drag handle + delete — left stripe carries status color */}
+        <td
+          className="w-8 px-1 border-l-[3px]"
+          style={{ borderLeftColor: STATUS_STRIPE[task.status] ?? "#9ca3af" }}
+        >
           <div className="flex flex-col items-center gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
             <button
               className="text-gray-300 hover:text-gray-500 cursor-grab text-xs leading-none px-0.5"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import type { Task, TaskStatus } from "@/types";
 
@@ -24,31 +25,54 @@ interface Props {
 
 export default function StatusCell({ task, onUpdate }: Props) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Close on outside click — must check both trigger and portal dropdown
   useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    if (open) document.addEventListener("mousedown", handler);
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!triggerRef.current?.contains(t) && !dropdownRef.current?.contains(t)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  return (
-    <td className="px-3 py-2 relative">
-      <div ref={ref}>
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className={cn(
-            "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-opacity hover:opacity-80",
-            getBadgeClasses(task.status)
-          )}
-        >
-          {task.status}
-        </button>
+  function handleOpen() {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const DROPDOWN_H = 260;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow < DROPDOWN_H ? rect.top - DROPDOWN_H - 4 : rect.bottom + 4;
+    setPos({ top, left: rect.left });
+    setOpen((v) => !v);
+  }
 
-        {open && (
-          <div className="absolute z-20 top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-lg py-1">
+  return (
+    <td className="px-3 py-2">
+      <button
+        ref={triggerRef}
+        onClick={handleOpen}
+        className={cn(
+          "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-opacity hover:opacity-80 whitespace-nowrap",
+          getBadgeClasses(task.status)
+        )}
+      >
+        {task.status}
+      </button>
+
+      {open &&
+        typeof window !== "undefined" &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999 }}
+            className="w-52 bg-white border border-gray-200 rounded-xl shadow-xl py-1"
+          >
             {STATUS_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -60,7 +84,7 @@ export default function StatusCell({ task, onUpdate }: Props) {
               >
                 <span
                   className={cn(
-                    "inline-flex px-2 py-0.5 rounded-full text-xs font-medium",
+                    "inline-flex px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap",
                     opt.classes
                   )}
                 >
@@ -71,9 +95,9 @@ export default function StatusCell({ task, onUpdate }: Props) {
                 )}
               </button>
             ))}
-          </div>
+          </div>,
+          document.body
         )}
-      </div>
     </td>
   );
 }

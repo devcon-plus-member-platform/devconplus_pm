@@ -260,6 +260,44 @@ export async function sendMeetingReminderEmail(
     `),
   });
 }
+// ─── Activity alert (to admin) ────────────────────────────────────────────────
+export interface ActivityAlertEmailOptions {
+  to: string;
+  actor: string;
+  action: string;
+  entity: string;
+  entityTitle: string;
+  page: string;
+}
+
+export async function sendActivityAlertEmail(opts: ActivityAlertEmailOptions): Promise<void> {
+  const resend = getResendClient();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const borderColor =
+    opts.action === "deleted" ? "#ef4444" :
+    opts.action === "created" ? "#22c55e" : "#2234b0";
+
+  await resend.emails.send({
+    from: "DEVCON+ PM <onboarding@resend.dev>",
+    to: opts.to,
+    subject: `[DEVCON+ PM] ${opts.actor} ${opts.action} ${opts.entity}: ${opts.entityTitle}`,
+    html: emailWrapper(`
+      <p style="color:#374151;">Hi <strong>Admin</strong>,</p>
+      <p style="color:#374151;">An activity was performed on the board:</p>
+      <div style="margin:16px 0;padding:16px;background:#f9fafb;border-left:4px solid ${borderColor};border-radius:0 8px 8px 0;">
+        <p style="margin:0 0 6px;font-size:15px;font-weight:600;color:#374151;">
+          <strong>${opts.actor}</strong> ${opts.action} ${opts.entity}
+        </p>
+        <p style="margin:0;color:#6b7280;font-size:14px;">"${opts.entityTitle}" &mdash; ${opts.page}</p>
+      </div>
+      <p style="color:#9ca3af;font-size:12px;">
+        Time: ${new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" })} PHT
+      </p>
+      ${ctaButton(`${appUrl}/dashboard`, "View Dashboard")}
+    `),
+  });
+}
+
 // ─── Welcome ──────────────────────────────────────────────────────────────────
 export interface WelcomeEmailOptions {
   to: string;

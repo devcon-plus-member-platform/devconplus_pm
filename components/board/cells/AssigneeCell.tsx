@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useBoardContext } from "../BoardContext";
 import type { Task } from "@/types";
 
@@ -12,18 +13,34 @@ interface Props {
 export default function AssigneeCell({ task, onUpdate }: Props) {
   const { contributors } = useBoardContext();
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
+  const assignee = task.assignee ?? contributors.find((c) => c.id === task.assignee_id);
+
+  // Close on outside click — must check both trigger and portal dropdown
   useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    if (open) document.addEventListener("mousedown", handler);
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!triggerRef.current?.contains(t) && !dropdownRef.current?.contains(t)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const assignee = task.assignee ?? contributors.find((c) => c.id === task.assignee_id);
+  function handleOpen() {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const DROPDOWN_H = 280;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow < DROPDOWN_H ? rect.top - DROPDOWN_H - 4 : rect.bottom + 4;
+    setPos({ top, left: rect.left });
+    setOpen((v) => !v);
+  }
 
   function select(id: string | null) {
     setOpen(false);
@@ -31,28 +48,34 @@ export default function AssigneeCell({ task, onUpdate }: Props) {
   }
 
   return (
-    <td className="px-3 py-2 relative">
-      <div ref={ref}>
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1.5 text-xs hover:bg-gray-100 px-2 py-1 rounded-md transition-colors w-full text-left"
-        >
-          {assignee ? (
-            <>
-              <span className="w-6 h-6 rounded-full bg-brand-200 text-brand-800 flex items-center justify-center text-xs font-semibold shrink-0 uppercase">
-                {(assignee.full_name ?? assignee.email)[0]}
-              </span>
-              <span className="truncate text-gray-700">
-                {assignee.full_name ?? assignee.email}
-              </span>
-            </>
-          ) : (
-            <span className="text-gray-300 italic">Unassigned</span>
-          )}
-        </button>
+    <td className="px-3 py-2">
+      <button
+        ref={triggerRef}
+        onClick={handleOpen}
+        className="flex items-center gap-1.5 text-xs hover:bg-gray-100 px-2 py-1 rounded-md transition-colors w-full text-left"
+      >
+        {assignee ? (
+          <>
+            <span className="w-6 h-6 rounded-full bg-brand-200 text-brand-800 flex items-center justify-center text-xs font-semibold shrink-0 uppercase">
+              {(assignee.full_name ?? assignee.email)[0]}
+            </span>
+            <span className="truncate text-gray-700">
+              {assignee.full_name ?? assignee.email}
+            </span>
+          </>
+        ) : (
+          <span className="text-gray-300 italic">Unassigned</span>
+        )}
+      </button>
 
-        {open && (
-          <div className="absolute z-20 top-full left-0 mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-lg py-1 max-h-56 overflow-y-auto">
+      {open &&
+        typeof window !== "undefined" &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999 }}
+            className="w-56 bg-white border border-gray-200 rounded-xl shadow-xl py-1 max-h-64 overflow-y-auto"
+          >
             <button
               onClick={() => select(null)}
               className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-400 hover:bg-gray-50 italic"
@@ -75,9 +98,9 @@ export default function AssigneeCell({ task, onUpdate }: Props) {
                 )}
               </button>
             ))}
-          </div>
+          </div>,
+          document.body
         )}
-      </div>
     </td>
   );
 }

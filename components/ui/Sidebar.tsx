@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/store";
+import { isAdmin } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import NotificationCenter from "./NotificationCenter";
 
@@ -42,9 +43,13 @@ export default function Sidebar() {
     </span>
   ) : null;
 
+  const visibleNavItems = NAV_ITEMS.filter(
+    (item) => item.href !== "/contributors" || isAdmin(contributor?.email)
+  );
+
   const navLinks = (
     <nav className="flex-1 px-3 py-4 space-y-1">
-      {NAV_ITEMS.map((item) => (
+      {visibleNavItems.map((item) => (
         <Link
           key={item.href}
           href={item.href}
@@ -63,26 +68,24 @@ export default function Sidebar() {
     </nav>
   );
 
-  const userFooter = (
+  const userFooter = contributor ? (
     <div className="px-4 py-4 border-t border-brand-800">
-      {contributor && (
-        <div className="mb-3 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-              style={{ backgroundColor: contributor.role?.color ?? "#6366f1" }}
-            >
-              {(contributor.full_name ?? contributor.email)[0].toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-white truncate">
-                {contributor.full_name ?? contributor.email}
-              </p>
-              {roleBadge}
-            </div>
+      <div className="mb-3 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <div
+            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+            style={{ backgroundColor: contributor.role?.color ?? "#6366f1" }}
+          >
+            {(contributor.full_name ?? contributor.email)[0].toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-white truncate">
+              {contributor.full_name ?? contributor.email}
+            </p>
+            {roleBadge}
           </div>
         </div>
-      )}
+      </div>
       <button
         onClick={handleSignOut}
         className="w-full text-left px-3 py-2 text-sm text-brand-300 hover:text-white hover:bg-brand-800 rounded-lg transition-colors"
@@ -90,13 +93,23 @@ export default function Sidebar() {
         Sign out
       </button>
     </div>
+  ) : (
+    <div className="px-4 py-4 border-t border-brand-800">
+      <p className="text-xs text-brand-400 mb-2 px-1">Viewing as Guest</p>
+      <Link
+        href="/login"
+        className="block w-full text-left px-3 py-2 text-sm text-brand-300 hover:text-white hover:bg-brand-800 rounded-lg transition-colors"
+      >
+        Sign in as Admin
+      </Link>
+    </div>
   );
 
   return (
     <>
       {/* ── Desktop sidebar ── */}
       <aside className="hidden md:flex w-60 min-h-screen bg-brand-950 flex-col text-white shrink-0">
-        {/* Logo + notification bell */}
+        {/* Logo + notification bell (admin only) */}
         <div className="px-6 py-5 border-b border-brand-800 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold tracking-tight text-white">
@@ -104,7 +117,7 @@ export default function Sidebar() {
             </h1>
             <p className="text-xs text-brand-300 mt-0.5">Project Management</p>
           </div>
-          <NotificationCenter />
+          {isAdmin(contributor?.email) && <NotificationCenter />}
         </div>
 
         {navLinks}
@@ -115,7 +128,7 @@ export default function Sidebar() {
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-brand-950 text-white flex items-center justify-between px-4 py-3 border-b border-brand-800">
         <span className="text-base font-bold tracking-tight">DEVCON+ PM</span>
         <div className="flex items-center gap-2">
-          <NotificationCenter />
+          {isAdmin(contributor?.email) && <NotificationCenter />}
           <button
             onClick={() => setMobileOpen((v) => !v)}
             className="p-2 rounded-lg hover:bg-brand-800 transition-colors"

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { isAdmin } from "@/lib/permissions";
 
 // Handles Supabase OAuth redirect (Google sign-in)
 // After OAuth, verifies the user is a registered contributor, then redirects to /dashboard
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
         .is("deleted_at", null)
         .single();
 
-      if (!contributor) {
+      if (!contributor && !isAdmin(data.user.email)) {
         await supabase.auth.signOut();
         return NextResponse.redirect(`${origin}/access-denied`);
       }
