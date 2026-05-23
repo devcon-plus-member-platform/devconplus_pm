@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/store";
@@ -10,6 +10,16 @@ import type { Contributor } from "@/types";
 export default function LoginPage() {
   const router = useRouter();
   const setContributor = useAuthStore((s) => s.setContributor);
+
+  // Non-admin visitors are redirected straight to the dashboard
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user && !isAdmin(user.email)) {
+        router.replace("/dashboard");
+      }
+    });
+  }, [router]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

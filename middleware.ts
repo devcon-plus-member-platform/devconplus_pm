@@ -36,8 +36,9 @@ export async function middleware(request: NextRequest) {
 
     const { pathname } = request.nextUrl;
 
-    // Authenticated but trying to visit login → redirect to dashboard
-    if (user && pathname === "/login") {
+    // Unauthenticated user hitting /dashboard → let them through (guest mode)
+    // Authenticated non-admin hitting /login → redirect to dashboard
+    if (pathname === "/login" && user) {
       const dashboardUrl = request.nextUrl.clone();
       dashboardUrl.pathname = "/dashboard";
       return NextResponse.redirect(dashboardUrl);

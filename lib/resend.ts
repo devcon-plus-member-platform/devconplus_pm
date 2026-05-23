@@ -316,13 +316,13 @@ export async function sendWelcomeEmail(opts: WelcomeEmailOptions): Promise<void>
     html: emailWrapper(`
       <p style="color:#374151;">Hi <strong>${opts.name}</strong>,</p>
       <p style="color:#374151;">You now have access to the <strong>DEVCON+ PM</strong> project management dashboard.</p>
-      <p style="color:#374151;">Log in using your email address: <strong>${opts.to}</strong></p>
+      <p style="color:#374151;">You can access the dashboard directly — no login required.</p>
       <ul style="color:#6b7280;font-size:14px;line-height:2;">
         <li>View and update tasks on the PM board</li>
         <li>Track QA test cases</li>
         <li>Receive team announcements</li>
       </ul>
-      ${ctaButton(`${appUrl}/login`, "Log in to DEVCON+ PM")}
+      ${ctaButton(`${appUrl}/dashboard`, "Open DEVCON+ PM Dashboard")}
     `),
   });
 }
