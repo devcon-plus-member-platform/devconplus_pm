@@ -1,0 +1,9 @@
+-- ============================================================
+-- DEVCON+ PM — Migration 010 (VOID — DO NOT APPLY)
+--
+-- This migration was created in error.
+-- The correct access model is:
+--   anon  (not signed in) = read-only  → covered by 009
+--   authenticated contributor = full CRUD except contributor mgmt → covered by 002
+--   admin = everything
+-- ============================================================
