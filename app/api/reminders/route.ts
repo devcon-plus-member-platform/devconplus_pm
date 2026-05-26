@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase";
 import { sendTaskReminderEmail } from "@/lib/resend";
 
+export const dynamic = "force-dynamic";
+
 // Called by Vercel Cron every hour.
 // Finds tasks due in 3 days, 1 day, and today (PHT) and emails assignees.
 // Deduplicates via task_reminders table — each type is sent at most once per task.
