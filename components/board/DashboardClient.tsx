@@ -278,7 +278,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
   }
 
   const SIGNIFICANT_TASK_FIELDS = new Set([
-    "title", "status", "assignee_id", "group_id", "due_date", "description", "pr_link",
+    "title", "status", "assignee_id", "assignee_ids", "group_id", "due_date", "description", "pr_link",
     "timeline_start", "timeline_end",
   ]);
 
@@ -334,24 +334,23 @@ export default function DashboardClient({ initialProjects, contributors }: Props
       logActivity(action, "task", taskTitle as string);
     }
 
-    // Email notify on assignee change
-    if (
-      updates.assignee_id !== undefined &&
-      prevTask &&
-      updates.assignee_id !== prevTask.assignee_id &&
-      updates.assignee_id !== null
-    ) {
-      const assignee = contributors.find((c) => c.id === updates.assignee_id);
-      if (assignee) {
-        fetch("/api/notify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "task_assigned",
-            task_id: id,
-            assignee_email: assignee.email,
-          }),
-        }).catch(console.error);
+    // Email notify newly added assignees
+    if (updates.assignee_ids !== undefined && prevTask) {
+      const prevIds = prevTask.assignee_ids ?? (prevTask.assignee_id ? [prevTask.assignee_id] : []);
+      const newIds = updates.assignee_ids.filter((id) => !prevIds.includes(id));
+      for (const newId of newIds) {
+        const assignee = contributors.find((c) => c.id === newId);
+        if (assignee) {
+          fetch("/api/notify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "task_assigned",
+              task_id: id,
+              assignee_email: assignee.email,
+            }),
+          }).catch(console.error);
+        }
       }
     }
   }

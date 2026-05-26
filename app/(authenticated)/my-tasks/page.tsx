@@ -40,7 +40,7 @@ export default async function MyTasksPage() {
       project:projects!project_id(id, name),
       group:groups!group_id(id, name)
     `)
-    .eq("assignee_id", contributor.id)
+    .contains("assignee_ids", [contributor.id])
     .order("due_date", { ascending: true, nullsFirst: false });
 
   return (

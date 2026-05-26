@@ -55,6 +55,7 @@ export interface Task {
   title: string;
   description: string | null;
   assignee_id: string | null;
+  assignee_ids: string[];
   status: TaskStatus;
   timeline_start: string | null;
   timeline_end: string | null;

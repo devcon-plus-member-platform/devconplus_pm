@@ -56,6 +56,13 @@ export default function ContributorsClient({ initialContributors, initialDeleted
     setShowAdd(false);
     showToast(`${fields.full_name} added as contributor.`);
 
+    // Create Supabase Auth account so they can log in and write to the board
+    await fetch("/api/contributors/invite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: fields.email }),
+    });
+
     // Send welcome email
     await fetch("/api/notify", {
       method: "POST",
