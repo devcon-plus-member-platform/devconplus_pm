@@ -87,12 +87,13 @@ interface EssentialSectionRow {
 
 let _bot: Bot | null = null;
 
-export function getBot(): Bot {
+export async function getBot(): Promise<Bot> {
   if (!_bot) {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not set");
     _bot = new Bot(token);
     registerHandlers(_bot);
+    await _bot.init(); // required in serverless — loads bot username so group commands match correctly
   }
   return _bot;
 }
@@ -141,6 +142,7 @@ function registerHandlers(bot: Bot) {
         "/standup — Your active tasks for standup\n\n" +
         "*QA & Bugs*\n" +
         "/qa — QA test summary by project\n" +
+        "/qastatus — Search & update a QA test status\n" +
         "/bugs — Open & in\\-progress bugs by severity\n\n" +
         "*Team & Planning*\n" +
         "/meetings — Your upcoming meetings this week\n" +
@@ -422,6 +424,106 @@ function registerHandlers(bot: Bot) {
 
     await ctx.editMessageText(
       `✅ Updated "${(task as unknown as TaskRow).title}" → ${newStatus}`
+    );
+  });
+
+  // /qastatus [keyword] — search & update a QA test status
+  bot.command("qastatus", async (ctx) => {
+    const username = ctx.from?.username;
+    if (!username) return ctx.reply("Could not determine your Telegram username.");
+
+    const keyword = ctx.match?.trim();
+    if (!keyword) {
+      return ctx.reply("Usage: /qastatus <test keyword>\nExample: /qastatus login flow");
+    }
+
+    const contributor = await getContributor(username).catch(() => null);
+    if (!contributor) return ctx.reply(notLinkedMessage());
+
+    const supabase = createServiceRoleClient();
+    const { data: tests, error } = await supabase
+      .from("qa_tests")
+      .select("id,title,status,category")
+      .eq("assigned_to", contributor.id)
+      .ilike("title", `%${keyword}%`)
+      .limit(5);
+
+    if (error) {
+      console.error("[/qastatus]", error);
+      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+    }
+
+    if (!tests || tests.length === 0) {
+      return ctx.reply(`No QA tests found matching "${keyword}". Try a different keyword.`);
+    }
+
+    if (tests.length === 1) {
+      const t = tests[0] as unknown as QATestRow;
+      const cat = t.category ? ` [${t.category}]` : "";
+      await ctx.reply(
+        `Found: ${t.title}${cat}\nCurrent status: ${t.status}\n\nUpdate status to:`,
+        { reply_markup: buildQAStatusKeyboard(t.id) }
+      );
+    } else {
+      const keyboard = new InlineKeyboard();
+      (tests as unknown as QATestRow[]).forEach((t) => {
+        const cat = t.category ? ` [${t.category}]` : "";
+        keyboard.text(`${t.title.slice(0, 55)}${cat}`, `pick_qa:${t.id}`).row();
+      });
+      await ctx.reply(`Found ${tests.length} matching QA tests. Which one?`, {
+        reply_markup: keyboard,
+      });
+    }
+  });
+
+  // Callback: user picked a QA test → show status picker
+  bot.callbackQuery(/^pick_qa:(.+)$/, async (ctx) => {
+    const testId = ctx.match[1];
+    const supabase = createServiceRoleClient();
+    const { data: test } = await supabase
+      .from("qa_tests")
+      .select("id,title,status,category")
+      .eq("id", testId)
+      .single();
+
+    await ctx.answerCallbackQuery();
+
+    if (!test) return ctx.editMessageText("QA test not found. It may have been deleted.");
+
+    const t = test as unknown as QATestRow;
+    const cat = t.category ? ` [${t.category}]` : "";
+    await ctx.editMessageText(
+      `Test: ${t.title}${cat}\nCurrent status: ${t.status}\n\nUpdate status to:`,
+      { reply_markup: buildQAStatusKeyboard(testId) }
+    );
+  });
+
+  // Callback: user picked a QA status → update DB
+  bot.callbackQuery(/^set_qa_status:(.+):(.+)$/, async (ctx) => {
+    const testId = ctx.match[1];
+    const newStatus = decodeURIComponent(ctx.match[2]);
+
+    const supabase = createServiceRoleClient();
+    const { data: test, error } = await supabase
+      .from("qa_tests")
+      .update({ status: newStatus })
+      .eq("id", testId)
+      .select("id,title,status")
+      .single();
+
+    await ctx.answerCallbackQuery();
+
+    if (error || !test) {
+      console.error("[/qastatus update]", error);
+      return ctx.editMessageText("Something went wrong. Please try again or check the dashboard.");
+    }
+
+    const t = test as unknown as QATestRow;
+    const emoji: Record<string, string> = {
+      Pass: "✅", Fail: "❌", Blocked: "🚫", "Not Run": "⬜",
+    };
+    await ctx.editMessageText(
+      `${emoji[newStatus] ?? "🔄"} Updated "${t.title}" → ${newStatus}`
     );
   });
 
@@ -891,6 +993,19 @@ function buildStatusKeyboard(taskId: string): InlineKeyboard {
   const keyboard = new InlineKeyboard();
   STATUS_OPTIONS.forEach((s) => {
     keyboard.text(s, `set_status:${taskId}:${encodeURIComponent(s)}`).row();
+  });
+  return keyboard;
+}
+
+const QA_STATUS_OPTIONS = ["Pass", "Fail", "Blocked", "Not Run"] as const;
+const QA_STATUS_EMOJI: Record<string, string> = {
+  Pass: "✅ Pass", Fail: "❌ Fail", Blocked: "🚫 Blocked", "Not Run": "⬜ Not Run",
+};
+
+function buildQAStatusKeyboard(testId: string): InlineKeyboard {
+  const keyboard = new InlineKeyboard();
+  QA_STATUS_OPTIONS.forEach((s) => {
+    keyboard.text(QA_STATUS_EMOJI[s], `set_qa_status:${testId}:${encodeURIComponent(s)}`).row();
   });
   return keyboard;
 }

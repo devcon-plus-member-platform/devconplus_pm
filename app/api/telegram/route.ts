@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const bot = getBot();
+    const bot = await getBot();
     const handleUpdate = webhookCallback(bot, "std/http");
     return handleUpdate(request);
   } catch (err) {
