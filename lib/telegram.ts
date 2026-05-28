@@ -1191,8 +1191,9 @@ function registerHandlers(bot: Bot) {
       }
 
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
       console.error("[voice command]", err);
-      await editStatus("❌ Something went wrong processing your voice message. Please try again.");
+      await editStatus(`❌ Voice error: ${msg.slice(0, 200)}`);
     }
   });
 
