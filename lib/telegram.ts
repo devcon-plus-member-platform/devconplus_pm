@@ -1,4 +1,6 @@
 import { Bot, InlineKeyboard } from "grammy";
+import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { createServiceRoleClient } from "@/lib/supabase";
 import type { TaskStatus } from "@/types";
 
@@ -83,6 +85,70 @@ interface EssentialSectionRow {
   entries: Array<{ id: string; label: string; data_type: string; value_text: string | null; note: string | null }>;
 }
 
+// ─── Voice helpers ────────────────────────────────────────────────────────────
+
+interface VoiceIntent {
+  action: "create_task" | "update_status" | "unknown";
+  task_title?: string;
+  project_name?: string;
+  group_name?: string;
+  assignee_name?: string;
+  status?: string;
+  task_keyword?: string;
+  new_status?: string;
+  reply?: string;
+}
+
+async function transcribeVoice(buffer: Buffer): Promise<string> {
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const audioFile = new File([new Uint8Array(buffer)], "voice.ogg", { type: "audio/ogg" });
+  const result = await openai.audio.transcriptions.create({
+    file: audioFile,
+    model: "whisper-1",
+  });
+  return result.text.trim();
+}
+
+async function parseVoiceIntent(
+  transcript: string,
+  contributor: ContributorRow,
+  myTasks: Array<{ title: string; status: string }>,
+  projects: Array<{ name: string }>,
+  team: Array<{ full_name: string | null; email: string }>
+): Promise<VoiceIntent> {
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+  const ctx = [
+    `Contributor: ${contributor.full_name ?? contributor.email}`,
+    `Active tasks: ${myTasks.map((t) => `"${t.title}" (${t.status})`).join(", ") || "none"}`,
+    `Projects: ${projects.map((p) => p.name).join(", ") || "none"}`,
+    `Team: ${team.map((m) => m.full_name ?? m.email).join(", ") || "none"}`,
+  ].join("\n");
+
+  const msg = await anthropic.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 300,
+    messages: [{
+      role: "user",
+      content:
+        `Parse this Telegram voice command. Return ONLY valid JSON, no markdown.\n\n` +
+        `Context:\n${ctx}\n\n` +
+        `Voice: "${transcript}"\n\n` +
+        `Schema: {"action":"create_task"|"update_status"|"unknown","task_title":"...","project_name":"...","group_name":"...","assignee_name":"...","status":"...","task_keyword":"...","new_status":"...","reply":"..."}\n` +
+        `Valid statuses: "Not Started","In Progress","Done","Help","I am Stuck","For Improvements"\n` +
+        `create_task: fill task_title (required), optionally project_name, group_name, assignee_name, status\n` +
+        `update_status: fill task_keyword (words from task title), new_status\n` +
+        `reply: one friendly confirmation line\n` +
+        `If unclear: action="unknown", reply=what you understood`,
+    }],
+  });
+
+  const raw = (msg.content[0] as { type: string; text: string }).text.trim();
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("No JSON in Claude response");
+  return JSON.parse(match[0]) as VoiceIntent;
+}
+
 // ─── Bot singleton ────────────────────────────────────────────────────────────
 
 let _bot: Bot | null = null;
@@ -134,6 +200,9 @@ function registerHandlers(bot: Bot) {
   bot.command("help", (ctx) => {
     ctx.reply(
       "📖 *DEVCON\\+ PM Bot Commands*\n\n" +
+        "*🎙️ Voice Commands*\n" +
+        "Send a voice message to create or update tasks naturally\\.\n" +
+        'Examples: "Create a task called fix login bug" · "Mark the deploy task as done"\n\n' +
         "*Board & Tasks*\n" +
         "/board — Full task board grouped by assignee\n" +
         "/mytasks — Your currently assigned tasks\n" +
@@ -967,6 +1036,180 @@ function registerHandlers(bot: Bot) {
 
     const header = `🏢 DEVCON+ Team — ${members.length} contributor${members.length !== 1 ? "s" : ""}\n\n`;
     await ctx.reply(header + sections.join("\n\n"));
+  });
+
+  // ─── Voice messages ────────────────────────────────────────────────────────
+  bot.on("message:voice", async (ctx) => {
+    const username = ctx.from?.username;
+    if (!username) return ctx.reply("Could not determine your Telegram username.");
+
+    const contributor = await getContributor(username).catch(() => null);
+    if (!contributor) return ctx.reply(notLinkedMessage());
+
+    if (!process.env.OPENAI_API_KEY || !process.env.ANTHROPIC_API_KEY) {
+      return ctx.reply(
+        "⚠️ Voice commands are not configured yet.\n" +
+        "Ask the admin to add OPENAI_API_KEY and ANTHROPIC_API_KEY to the server."
+      );
+    }
+
+    const thinking = await ctx.reply("🎙️ Transcribing…");
+    const chatId = ctx.chat.id;
+    const msgId = thinking.message_id;
+
+    const editStatus = (text: string) =>
+      ctx.api.editMessageText(chatId, msgId, text).catch(() => null);
+
+    try {
+      // 1. Download OGG from Telegram
+      const fileInfo = await ctx.getFile();
+      const token = process.env.TELEGRAM_BOT_TOKEN!;
+      const audioRes = await fetch(`https://api.telegram.org/file/bot${token}/${fileInfo.file_path}`);
+      const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
+
+      // 2. Transcribe with Whisper
+      const transcript = await transcribeVoice(audioBuffer);
+      if (!transcript) {
+        await editStatus("❌ Couldn't understand the audio. Please speak clearly and try again.");
+        return;
+      }
+
+      await editStatus(`🎙️ Heard: "${transcript}"\n\n⏳ Processing…`);
+
+      // 3. Load context for Claude
+      const supabase = createServiceRoleClient();
+      const [{ data: myTasks }, { data: projectRows }, { data: teamRows }] = await Promise.all([
+        supabase.from("tasks").select("title,status").contains("assignee_ids", [contributor.id]).not("status", "eq", "Done").limit(20),
+        supabase.from("projects").select("id,name").order("created_at").limit(10),
+        supabase.from("contributors").select("id,full_name,email").is("deleted_at", null).limit(30),
+      ]);
+
+      // 4. Parse intent
+      const intent = await parseVoiceIntent(
+        transcript,
+        contributor,
+        (myTasks ?? []) as Array<{ title: string; status: string }>,
+        (projectRows ?? []) as Array<{ name: string }>,
+        (teamRows ?? []) as Array<{ full_name: string | null; email: string }>
+      );
+
+      // 5. Execute
+      if (intent.action === "create_task" && intent.task_title) {
+        // Resolve project
+        let projectId: string | null = null;
+        if (intent.project_name) {
+          const { data: p } = await supabase.from("projects").select("id").ilike("name", `%${intent.project_name}%`).limit(1).single();
+          projectId = p?.id ?? null;
+        }
+        if (!projectId && (projectRows ?? []).length > 0) {
+          projectId = (projectRows![0] as { id: string }).id;
+        }
+        if (!projectId) {
+          await editStatus(`🎙️ Heard: "${transcript}"\n\n❌ No projects found. Create one on the dashboard first.`);
+          return;
+        }
+
+        // Resolve group
+        let groupId: string | null = null;
+        if (intent.group_name) {
+          const { data: g } = await supabase.from("groups").select("id").eq("project_id", projectId).ilike("name", `%${intent.group_name}%`).limit(1).single();
+          groupId = g?.id ?? null;
+        }
+        if (!groupId) {
+          const { data: g } = await supabase.from("groups").select("id").eq("project_id", projectId).order("position").limit(1).single();
+          groupId = g?.id ?? null;
+        }
+        if (!groupId) {
+          await editStatus(`🎙️ Heard: "${transcript}"\n\n❌ No groups found in the project. Add one on the dashboard first.`);
+          return;
+        }
+
+        // Resolve assignee
+        let assigneeId: string | null = null;
+        if (intent.assignee_name) {
+          const { data: a } = await supabase.from("contributors").select("id").ilike("full_name", `%${intent.assignee_name}%`).is("deleted_at", null).limit(1).single();
+          assigneeId = a?.id ?? null;
+        }
+
+        const { count } = await supabase.from("tasks").select("id", { count: "exact", head: true }).eq("group_id", groupId);
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase.from("tasks") as any).insert({
+          group_id: groupId,
+          project_id: projectId,
+          title: intent.task_title,
+          status: intent.status ?? "Not Started",
+          assignee_id: assigneeId,
+          assignee_ids: assigneeId ? [assigneeId] : [],
+          position: count ?? 0,
+        });
+
+        if (error) {
+          console.error("[voice:create_task]", error);
+          await editStatus(`🎙️ Heard: "${transcript}"\n\n❌ Failed to create the task. Please try again.`);
+          return;
+        }
+
+        await editStatus(intent.reply ?? `✅ Created task: "${intent.task_title}"`);
+
+      } else if (intent.action === "update_status" && intent.task_keyword && intent.new_status) {
+        const { data: tasks } = await supabase
+          .from("tasks")
+          .select("id,title,status")
+          .contains("assignee_ids", [contributor.id])
+          .ilike("title", `%${intent.task_keyword}%`)
+          .limit(5);
+
+        if (!tasks || tasks.length === 0) {
+          await editStatus(
+            `🎙️ Heard: "${transcript}"\n\n` +
+            `❌ No task found matching "${intent.task_keyword}". Try /status to update manually.`
+          );
+          return;
+        }
+
+        if (tasks.length === 1) {
+          const task = tasks[0] as unknown as TaskRow;
+          await supabase.from("tasks").update({ status: intent.new_status as TaskStatus }).eq("id", task.id);
+          await editStatus(intent.reply ?? `✅ Updated "${task.title}" → ${intent.new_status}`);
+        } else {
+          const keyboard = new InlineKeyboard();
+          (tasks as unknown as TaskRow[]).forEach((t) => {
+            keyboard.text(t.title.slice(0, 64), `voice_status:${t.id}:${encodeURIComponent(intent.new_status!)}`).row();
+          });
+          await ctx.api.editMessageText(chatId, msgId,
+            `🎙️ Heard: "${transcript}"\n\nFound ${tasks.length} matching tasks. Which one to mark as "${intent.new_status}"?`,
+            { reply_markup: keyboard }
+          );
+        }
+
+      } else {
+        await editStatus(
+          `🎙️ Heard: "${transcript}"\n\n` +
+          (intent.reply ?? `I'm not sure what to do with that. Try:\n• "Create a task called fix the login bug"\n• "Mark the deploy task as done"`)
+        );
+      }
+
+    } catch (err) {
+      console.error("[voice command]", err);
+      await editStatus("❌ Something went wrong processing your voice message. Please try again.");
+    }
+  });
+
+  // Callback: voice multi-match status pick
+  bot.callbackQuery(/^voice_status:(.+):(.+)$/, async (ctx) => {
+    const taskId = ctx.match[1];
+    const newStatus = decodeURIComponent(ctx.match[2]) as TaskStatus;
+    const supabase = createServiceRoleClient();
+    const { data: task, error } = await supabase
+      .from("tasks")
+      .update({ status: newStatus })
+      .eq("id", taskId)
+      .select("id,title")
+      .single();
+    await ctx.answerCallbackQuery();
+    if (error || !task) return ctx.editMessageText("❌ Failed to update. Please try again.");
+    await ctx.editMessageText(`✅ Updated "${(task as unknown as TaskRow).title}" → ${newStatus}`);
   });
 
   bot.on("message:text", (ctx) => {
