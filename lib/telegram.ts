@@ -1,6 +1,5 @@
 import { Bot, InlineKeyboard } from "grammy";
 import Groq from "groq-sdk";
-import Anthropic from "@anthropic-ai/sdk";
 import { createServiceRoleClient } from "@/lib/supabase";
 import type { TaskStatus } from "@/types";
 
@@ -116,7 +115,7 @@ async function parseVoiceIntent(
   projects: Array<{ name: string }>,
   team: Array<{ full_name: string | null; email: string }>
 ): Promise<VoiceIntent> {
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
   const ctx = [
     `Contributor: ${contributor.full_name ?? contributor.email}`,
@@ -125,8 +124,8 @@ async function parseVoiceIntent(
     `Team: ${team.map((m) => m.full_name ?? m.email).join(", ") || "none"}`,
   ].join("\n");
 
-  const msg = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
+  const msg = await groq.chat.completions.create({
+    model: "llama-3.3-70b-versatile",
     max_tokens: 300,
     messages: [{
       role: "user",
@@ -143,9 +142,9 @@ async function parseVoiceIntent(
     }],
   });
 
-  const raw = (msg.content[0] as { type: string; text: string }).text.trim();
+  const raw = msg.choices[0]?.message?.content?.trim() ?? "";
   const match = raw.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error("No JSON in Claude response");
+  if (!match) throw new Error("No JSON in Groq response");
   return JSON.parse(match[0]) as VoiceIntent;
 }
 
@@ -1046,10 +1045,10 @@ function registerHandlers(bot: Bot) {
     const contributor = await getContributor(username).catch(() => null);
     if (!contributor) return ctx.reply(notLinkedMessage());
 
-    if (!process.env.GROQ_API_KEY || !process.env.ANTHROPIC_API_KEY) {
+    if (!process.env.GROQ_API_KEY) {
       return ctx.reply(
         "⚠️ Voice commands are not configured yet.\n" +
-        "Ask the admin to add GROQ_API_KEY and ANTHROPIC_API_KEY to the server."
+        "Ask the admin to add GROQ_API_KEY to the server."
       );
     }
 
