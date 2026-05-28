@@ -278,7 +278,10 @@ export interface BoardData {
 
 export interface AuthStore {
   contributor: Contributor | null;
+  /** Email of a Supabase-authenticated user whose email is NOT in the contributors table. */
+  guestEmail: string | null;
   setContributor: (c: Contributor | null) => void;
+  setGuestEmail: (email: string | null) => void;
 }
 
 // ─── API response wrappers ────────────────────────────────────────────────────

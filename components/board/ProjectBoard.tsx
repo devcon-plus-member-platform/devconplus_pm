@@ -12,7 +12,7 @@ interface Props {
 }
 
 export default function ProjectBoard({ project, loading }: Props) {
-  const { groups, addGroup } = useBoardContext();
+  const { groups, addGroup, canEdit } = useBoardContext();
   const [newGroupName, setNewGroupName] = useState("");
   const [addingGroup, setAddingGroup] = useState(false);
 
@@ -50,15 +50,17 @@ export default function ProjectBoard({ project, loading }: Props) {
             <p className="text-xs text-gray-400 mt-0.5 truncate">{project.description}</p>
           )}
         </div>
-        <button
-          onClick={() => setAddingGroup(true)}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm text-brand-600 hover:text-brand-700 hover:bg-brand-50 border border-brand-200 hover:border-brand-300 rounded-lg transition-all duration-150 font-medium shrink-0 ml-4 group/btn"
-        >
-          <svg className="w-4 h-4 transition-transform duration-150 group-hover/btn:scale-110" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Add Group
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setAddingGroup(true)}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm text-brand-600 hover:text-brand-700 hover:bg-brand-50 border border-brand-200 hover:border-brand-300 rounded-lg transition-all duration-150 font-medium shrink-0 ml-4 group/btn"
+          >
+            <svg className="w-4 h-4 transition-transform duration-150 group-hover/btn:scale-110" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Add Group
+          </button>
+        )}
       </div>
 
       {/* Scrollable board area */}
@@ -81,15 +83,17 @@ export default function ProjectBoard({ project, loading }: Props) {
             </div>
             <p className="text-sm font-medium text-gray-600 mb-1">No groups yet</p>
             <p className="text-xs text-gray-400 mb-4">Groups organize tasks by sprint, feature, or phase.</p>
-            <button
-              onClick={() => setAddingGroup(true)}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm text-brand-600 hover:text-brand-700 border border-brand-200 hover:border-brand-300 hover:bg-brand-50 rounded-lg font-medium transition-all duration-150"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Add your first group
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => setAddingGroup(true)}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm text-brand-600 hover:text-brand-700 border border-brand-200 hover:border-brand-300 hover:bg-brand-50 rounded-lg font-medium transition-all duration-150"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Add your first group
+              </button>
+            )}
           </div>
         )}
 

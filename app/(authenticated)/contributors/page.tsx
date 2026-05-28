@@ -2,7 +2,6 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase";
-import { ADMIN_EMAIL } from "@/lib/permissions";
 import ContributorsClient from "@/components/contributors/ContributorsClient";
 import type { Contributor, Role } from "@/types";
 
@@ -13,7 +12,19 @@ export default async function ContributorsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user?.email !== ADMIN_EMAIL) {
+  if (!user) {
+    redirect("/login");
+  }
+
+  // Only active contributors can manage team members
+  const { data: currentContributor } = await supabase
+    .from("contributors")
+    .select("id")
+    .eq("email", user.email!)
+    .is("deleted_at", null)
+    .single();
+
+  if (!currentContributor) {
     redirect("/dashboard");
   }
 

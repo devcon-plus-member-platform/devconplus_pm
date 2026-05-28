@@ -85,6 +85,7 @@ export default function GroupSection({ group, colorIdx }: Props) {
     addTask,
     updateGroup,
     deleteGroup,
+    canEdit,
   } = useBoardContext();
 
   const [editingName, setEditingName] = useState(false);
@@ -138,16 +139,18 @@ export default function GroupSection({ group, colorIdx }: Props) {
         style={{ backgroundColor: `${accent}0d` }}
       >
         {/* Drag handle */}
-        <button
-          className="text-gray-300 hover:text-gray-500 cursor-grab opacity-0 group-hover/header:opacity-100 transition-all duration-150 shrink-0 p-0.5 rounded hover:bg-black/5"
-          title="Drag group"
-          {...attributes}
-          {...listeners}
-        >
-          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zM7 8a1 1 0 11-2 0 1 1 0 012 0zM7 12a1 1 0 11-2 0 1 1 0 012 0zM13 4a1 1 0 11-2 0 1 1 0 012 0zM13 8a1 1 0 11-2 0 1 1 0 012 0zM13 12a1 1 0 11-2 0 1 1 0 012 0z" />
-          </svg>
-        </button>
+        {canEdit && (
+          <button
+            className="text-gray-300 hover:text-gray-500 cursor-grab opacity-0 group-hover/header:opacity-100 transition-all duration-150 shrink-0 p-0.5 rounded hover:bg-black/5"
+            title="Drag group"
+            {...attributes}
+            {...listeners}
+          >
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zM7 8a1 1 0 11-2 0 1 1 0 012 0zM7 12a1 1 0 11-2 0 1 1 0 012 0zM13 4a1 1 0 11-2 0 1 1 0 012 0zM13 8a1 1 0 11-2 0 1 1 0 012 0zM13 12a1 1 0 11-2 0 1 1 0 012 0z" />
+            </svg>
+          </button>
+        )}
 
         {/* Collapse / expand toggle */}
         <button
@@ -222,10 +225,10 @@ export default function GroupSection({ group, colorIdx }: Props) {
           />
         ) : (
           <button
-            onClick={() => setEditingName(true)}
+            onClick={() => canEdit && setEditingName(true)}
             className="flex-1 text-left text-sm font-semibold truncate hover:opacity-75 transition-opacity"
             style={{ color: accent }}
-            title="Click to rename"
+            title={canEdit ? "Click to rename" : undefined}
           >
             {group.name}
             <span className="ml-2 text-xs font-normal text-gray-400">
@@ -246,15 +249,17 @@ export default function GroupSection({ group, colorIdx }: Props) {
         </button>
 
         {/* Delete group */}
-        <button
-          onClick={() => setConfirmDelete(true)}
-          className="shrink-0 opacity-0 group-hover/header:opacity-100 transition-all duration-150 p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50"
-          title="Delete group"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-          </svg>
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="shrink-0 opacity-0 group-hover/header:opacity-100 transition-all duration-150 p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50"
+            title="Delete group"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Task table */}
@@ -306,17 +311,19 @@ export default function GroupSection({ group, colorIdx }: Props) {
           </div>
 
           {/* Add task */}
-          <div className="border-t border-gray-100 px-3 py-2">
-            <button
-              onClick={() => addTask(group.id)}
-              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 px-3 py-1.5 rounded-md transition-all duration-150 w-full text-left group/add"
-            >
-              <svg className="w-3.5 h-3.5 transition-transform duration-150 group-hover/add:scale-110" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Add Task
-            </button>
-          </div>
+          {canEdit && (
+            <div className="border-t border-gray-100 px-3 py-2">
+              <button
+                onClick={() => addTask(group.id)}
+                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 px-3 py-1.5 rounded-md transition-all duration-150 w-full text-left group/add"
+              >
+                <svg className="w-3.5 h-3.5 transition-transform duration-150 group-hover/add:scale-110" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Add Task
+              </button>
+            </div>
+          )}
         </>
       )}
 
@@ -405,17 +412,19 @@ export default function GroupSection({ group, colorIdx }: Props) {
           </div>
 
           {/* Modal footer — add task */}
-          <div className="border-t border-gray-100 px-6 py-3 shrink-0">
-            <button
-              onClick={() => addTask(group.id)}
-              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 px-3 py-1.5 rounded-md transition-all duration-150 group/add"
-            >
-              <svg className="w-3.5 h-3.5 transition-transform duration-150 group-hover/add:scale-110" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Add Task
-            </button>
-          </div>
+          {canEdit && (
+            <div className="border-t border-gray-100 px-6 py-3 shrink-0">
+              <button
+                onClick={() => addTask(group.id)}
+                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 px-3 py-1.5 rounded-md transition-all duration-150 group/add"
+              >
+                <svg className="w-3.5 h-3.5 transition-transform duration-150 group-hover/add:scale-110" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Add Task
+              </button>
+            </div>
+          )}
         </div>,
         document.body
       )}

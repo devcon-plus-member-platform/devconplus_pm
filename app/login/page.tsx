@@ -4,18 +4,18 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/store";
-import { isAdmin, ADMIN_EMAIL } from "@/lib/permissions";
 import type { Contributor } from "@/types";
 
 export default function LoginPage() {
   const router = useRouter();
   const setContributor = useAuthStore((s) => s.setContributor);
+  const setGuestEmail = useAuthStore((s) => s.setGuestEmail);
 
-  // Non-admin visitors are redirected straight to the dashboard
+  // Already authenticated? Go straight to the dashboard.
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user && !isAdmin(user.email)) {
+      if (user) {
         router.replace("/dashboard");
       }
     });
@@ -53,21 +53,10 @@ export default function LoginPage() {
       .single();
 
     if (!contributor) {
-      if (!isAdmin(userEmail)) {
-        await supabase.auth.signOut();
-        router.push("/access-denied");
-        return;
-      }
-      setContributor({
-        id: "admin",
-        email: ADMIN_EMAIL,
-        full_name: "Admin",
-        role_id: null,
-        telegram_username: null,
-        deleted_at: null,
-        created_at: new Date().toISOString(),
-      });
+      setContributor(null);
+      setGuestEmail(userEmail);
     } else {
+      setGuestEmail(null);
       setContributor(contributor as Contributor);
     }
 

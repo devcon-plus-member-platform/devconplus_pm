@@ -49,6 +49,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
   );
 
   const currentContributor = useAuthStore((s) => s.contributor);
+  const canEdit = !!currentContributor;
 
   function logActivity(action: string, entity: string, entityTitle: string) {
     const actorName =
@@ -197,7 +198,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
   }
 
   async function addGroup(name: string) {
-    if (!selectedProjectId) return;
+    if (!canEdit || !selectedProjectId) return;
     const position = groups.length;
     const { data, error } = await supabase
       .from("groups")
@@ -212,6 +213,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
   }
 
   async function updateGroup(id: string, name: string) {
+    if (!canEdit) return;
     const prev = groups.find((g) => g.id === id);
     setGroups((p) => p.map((g) => (g.id === id ? { ...g, name } : g)));
     await supabase.from("groups").update({ name }).eq("id", id);
@@ -219,6 +221,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
   }
 
   async function deleteGroup(id: string) {
+    if (!canEdit) return;
     const prevGroups = groups;
     const prevTasks = tasksByGroup;
     const target = groups.find((g) => g.id === id);
@@ -238,6 +241,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
   }
 
   async function reorderGroups(activeId: string, overId: string) {
+    if (!canEdit) return;
     const oldIdx = groups.findIndex((g) => g.id === activeId);
     const newIdx = groups.findIndex((g) => g.id === overId);
     if (oldIdx === -1 || newIdx === -1) return;
@@ -253,7 +257,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
 
   // ─── Task mutations ─────────────────────────────────────────────────────────
   async function addTask(groupId: string) {
-    if (!selectedProjectId) return;
+    if (!canEdit || !selectedProjectId) return;
     const position = (tasksByGroup[groupId] ?? []).length;
     const { data, error } = await supabase
       .from("tasks")
@@ -288,6 +292,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
     updates: Partial<Task>,
     prevTask?: Task
   ) {
+    if (!canEdit) return;
     // Optimistic update
     setTasksByGroup((prev) => ({
       ...prev,
@@ -356,6 +361,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
   }
 
   async function deleteTask(id: string, groupId: string) {
+    if (!canEdit) return;
     const prev = tasksByGroup[groupId] ?? [];
     const target = prev.find((t) => t.id === id);
     setTasksByGroup((prevState) => ({
@@ -375,6 +381,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
     activeId: string,
     overId: string
   ) {
+    if (!canEdit) return;
     const ts = tasksByGroup[groupId] ?? [];
     const oldIdx = ts.findIndex((t) => t.id === activeId);
     const newIdx = ts.findIndex((t) => t.id === overId);
@@ -395,6 +402,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
     toGroupId: string,
     overId: string
   ) {
+    if (!canEdit) return;
     const task = (tasksByGroup[fromGroupId] ?? []).find((t) => t.id === taskId);
     if (!task) return;
 
@@ -430,6 +438,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
     groupId: string,
     file: File
   ) {
+    if (!canEdit) return;
     const path = `${taskId}/${Date.now()}_${file.name}`;
     const { error: upErr } = await supabase.storage
       .from("task-attachments")
@@ -458,6 +467,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
     taskId: string,
     groupId: string
   ) {
+    if (!canEdit) return;
     await supabase.storage
       .from("task-attachments")
       .remove([attachment.file_url]);
@@ -513,6 +523,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
         contributors,
         selectedProjectId: selectedProjectId ?? "",
         collapsedGroups,
+        canEdit,
         toggleGroupCollapse,
         addGroup,
         updateGroup,

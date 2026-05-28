@@ -10,6 +10,7 @@ export interface BoardContextValue {
   contributors: Contributor[];
   selectedProjectId: string;
   collapsedGroups: Set<string>;
+  canEdit: boolean;
 
   // Group actions
   toggleGroupCollapse: (groupId: string) => void;

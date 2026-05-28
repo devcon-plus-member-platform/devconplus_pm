@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/store";
-import { isAdmin } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import NotificationCenter from "./NotificationCenter";
 
@@ -88,18 +87,21 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const contributor = useAuthStore((s) => s.contributor);
+  const guestEmail = useAuthStore((s) => s.guestEmail);
   const setContributor = useAuthStore((s) => s.setContributor);
+  const setGuestEmail = useAuthStore((s) => s.setGuestEmail);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   async function handleSignOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
     setContributor(null);
+    setGuestEmail(null);
     router.push("/login");
   }
 
   const visibleNavItems = NAV_ITEMS.filter(
-    (item) => item.href !== "/contributors" || isAdmin(contributor?.email)
+    (item) => item.href !== "/contributors" || !!contributor
   );
 
   const navLinks = (
@@ -172,11 +174,33 @@ export default function Sidebar() {
         Sign out
       </button>
     </div>
+  ) : guestEmail ? (
+    <div className="px-3 py-3 border-t border-white/[0.08]">
+      <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg mb-1">
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ring-2 ring-white/10 bg-brand-600">
+          {guestEmail[0].toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-white truncate leading-tight">
+            {guestEmail}
+          </p>
+          <span className="inline-block px-1.5 py-px rounded text-[10px] font-medium text-white/60 mt-0.5 bg-white/10">
+            Guest
+          </span>
+        </div>
+      </div>
+      <button
+        onClick={handleSignOut}
+        className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-brand-300 hover:text-white hover:bg-white/[0.07] rounded-lg transition-all duration-150"
+      >
+        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+        </svg>
+        Sign out
+      </button>
+    </div>
   ) : (
     <div className="px-3 py-3 border-t border-white/[0.08]">
-      <div className="px-2 py-2 mb-1">
-        <p className="text-[11px] text-brand-400 font-medium uppercase tracking-wide">Guest access</p>
-      </div>
       <Link
         href="/login"
         className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-brand-300 hover:text-white hover:bg-white/[0.07] rounded-lg transition-all duration-150"
@@ -184,7 +208,7 @@ export default function Sidebar() {
         <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l3 3m0 0l-3 3m3-3H3.75" />
         </svg>
-        Sign in as Admin
+        Sign in
       </Link>
     </div>
   );
@@ -203,7 +227,7 @@ export default function Sidebar() {
               Project Management
             </p>
           </div>
-          {isAdmin(contributor?.email) && <NotificationCenter />}
+          {!!contributor && <NotificationCenter />}
         </div>
 
         {navLinks}
@@ -214,7 +238,7 @@ export default function Sidebar() {
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-brand-950 text-white flex items-center justify-between px-4 py-3 border-b border-white/[0.08]">
         <span className="text-sm font-bold tracking-tight">DEVCON+</span>
         <div className="flex items-center gap-2">
-          {isAdmin(contributor?.email) && <NotificationCenter />}
+          {!!contributor && <NotificationCenter />}
           <button
             onClick={() => setMobileOpen((v) => !v)}
             className="p-1.5 rounded-lg hover:bg-white/[0.07] transition-colors"
