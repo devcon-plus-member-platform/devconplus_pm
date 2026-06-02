@@ -100,13 +100,13 @@ Deno.serve(async () => {
         body: JSON.stringify({
           from: "DEVCON+ PM <no-reply@devconplus.com>",
           to: email,
-          subject: `Reminder: ${meeting.title} starting in ${meeting.reminder_minutes_before} minutes`,
+          subject: `😱 Kibot! ${meeting.title} starts in ${meeting.reminder_minutes_before} minutes`,
           html: `
             <p>Hi ${full_name ?? email},</p>
-            <p>This is a reminder that <strong>${meeting.title}</strong> starts in <strong>${meeting.reminder_minutes_before} minutes</strong>.</p>
+            <p>Sorry to kibot you — <strong>${meeting.title}</strong> starts in <strong>${meeting.reminder_minutes_before} minutes</strong>. Close that tab and go.</p>
             <p><strong>Date:</strong> ${meeting.meeting_date}<br/>
             <strong>Time:</strong> ${meeting.start_time.slice(0, 5)} – ${meeting.end_time.slice(0, 5)} (${meeting.timezone})${meetLinkLine}</p>
-            <p>— DEVCON+ PM</p>
+            <p>— Kibot 🤖, your DEVCON+ PM bot</p>
           `,
         }),
       }).catch((e) => console.warn("[send-meeting-reminders] email error:", e));
@@ -114,9 +114,10 @@ Deno.serve(async () => {
       // Send Telegram DM if username is linked
       if (telegram_username && TELEGRAM_BOT_TOKEN) {
         const text =
-          `⏰ Reminder: *${meeting.title}* starts in ${meeting.reminder_minutes_before} min\n` +
+          `😱 Kibot! *${meeting.title}* starts in ${meeting.reminder_minutes_before} min\n` +
           `${meeting.meeting_date} at ${meeting.start_time.slice(0, 5)} (${meeting.timezone})` +
-          (meeting.google_meet_link ? `\n[Join Meet](${meeting.google_meet_link})` : "");
+          (meeting.google_meet_link ? `\n[Join Meet](${meeting.google_meet_link})` : "") +
+          `\n\n_Close that tab and go._`;
 
         await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
           method: "POST",

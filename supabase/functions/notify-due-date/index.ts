@@ -58,13 +58,13 @@ async function sendDueReminderEmail(opts: {
     body: JSON.stringify({
       from: "DEVCON+ PM <onboarding@resend.dev>",
       to: opts.to,
-      subject: `⏰ Task due tomorrow: ${opts.taskTitle}`,
+      subject: `😱 Kibot! "${opts.taskTitle}" is due tomorrow`,
       html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#f9fafb;border-radius:12px;">
   <div style="background:white;border-radius:8px;padding:32px;border:1px solid #e5e7eb;">
-    <h2 style="margin:0 0 4px;color:#1e2970;font-size:20px;">DEVCON+ PM</h2>
-    <p style="margin:0 0 24px;color:#6b7280;font-size:13px;">Project Management Dashboard</p>
+    <h2 style="margin:0 0 4px;color:#1e2970;font-size:20px;">Kibot 🤖</h2>
+    <p style="margin:0 0 24px;color:#6b7280;font-size:13px;">DEVCON+ PM Bot &mdash; bringing you kibot since day one</p>
     <p style="color:#374151;">Hi <strong>${opts.name}</strong>,</p>
-    <p style="color:#374151;">Your task <strong>&ldquo;${opts.taskTitle}&rdquo;</strong> is due tomorrow (${formattedDate}).</p>
+    <p style="color:#374151;">Sorry to kibot you, but <strong>&ldquo;${opts.taskTitle}&rdquo;</strong> is due <strong>tomorrow</strong> (${formattedDate}). You've got today. Use it wisely.</p>
     <table style="width:100%;border-collapse:collapse;margin:20px 0;">
       <tr>
         <td style="padding:10px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-weight:600;color:#374151;width:30%;">Current Status</td>
@@ -77,7 +77,7 @@ async function sendDueReminderEmail(opts: {
     </table>
     <a href="${opts.appUrl}/dashboard" style="display:inline-block;margin-top:16px;padding:10px 22px;background:#2234b0;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Update in DEVCON+ PM &rarr;</a>
   </div>
-  <p style="text-align:center;margin-top:16px;color:#9ca3af;font-size:12px;">DEVCON+ Philippines &middot; Sent by DEVCON+ PM</p>
+  <p style="text-align:center;margin-top:16px;color:#9ca3af;font-size:12px;">DEVCON+ Philippines &middot; Kibot &mdash; your friendly PM bot that will always find you</p>
 </div>`,
     }),
   });

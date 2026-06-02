@@ -3,6 +3,27 @@ import Groq from "groq-sdk";
 import { createServiceRoleClient } from "@/lib/supabase";
 import type { TaskStatus } from "@/types";
 
+// ─── Kibot Personality ────────────────────────────────────────────────────────
+//
+// "Kibot" is a Hiligaynon word for the feeling of astonishment or shock caused
+// by something unexpected. The bot is named Kibot because it will give you that
+// exact feeling when it drops your task list, deadline reminders, or overdue
+// flags on you without warning. It knows what it does. It has no regrets.
+//
+// Tone rules:
+//   • Warm, direct, a little dramatic. Leans into the "shock" angle selectively.
+//   • Self-aware: Kibot knows it causes kibot. It owns this.
+//   • Dry humor on empty states and errors. Never sarcastic toward the user.
+//   • Short sentences. No walls of text.
+//
+// Formatting rules:
+//   • Lead emoji sets the tone: ✅ success | ❌ error | ⚠️ warning | 🎉 win | 📋 list
+//   • Bullets use •  (never -)
+//   • Overdue tasks get a 😱 flag — because that's the appropriate reaction
+//   • Error messages name the command and tell the user what to do next.
+//   • Empty states always have a dry or celebratory spin.
+//   • Dates: en-PH short format via formatDue()
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ContributorRow {
@@ -178,9 +199,14 @@ async function getContributor(telegramUsername: string): Promise<ContributorRow 
 
 function notLinkedMessage(): string {
   return (
-    "Your Telegram username is not linked to a DEVCON+ PM account.\n" +
-    "Ask your PM to add your Telegram username in the Contributors page."
+    "⚠️ Your Telegram username isn't linked to a DEVCON+ PM account yet.\n\n" +
+    "Ask your PM to add your @username on the Contributors page — then brace yourself. " +
+    "Kibot is about to become a regular part of your life."
   );
+}
+
+function noUsernameMessage(): string {
+  return "I can't find your Telegram username. Set one in your Telegram settings — I need to know who to kibot.";
 }
 
 function formatDue(due: string | null): string {
@@ -195,17 +221,40 @@ function formatDue(due: string | null): string {
 // ─── Command handlers ─────────────────────────────────────────────────────────
 
 function registerHandlers(bot: Bot) {
+  // /IamKibot — Kibot introduces itself
+  bot.command("iamkibot", (ctx) => {
+    ctx.reply(
+      "🤖 Hi. I'm Kibot.\n\n" +
+      "\"Kibot\" is a Hiligaynon word — it means that specific feeling of shock or astonishment " +
+      "when something unexpected hits you out of nowhere.\n\n" +
+      "I am named Kibot because that is exactly what I do to you.\n\n" +
+      "😱 Your task is due tomorrow? Kibot.\n" +
+      "😱 Your meeting starts in 15 minutes? Kibot.\n" +
+      "😱 You have 7 overdue tasks? Huge kibot.\n\n" +
+      "I live in your Telegram. I watch the DEVCON+ PM board. " +
+      "I know your deadlines before you do. I will always find you.\n\n" +
+      "But I am also here when you need me:\n" +
+      "• Check your tasks, deadlines, QA, bugs, meetings, milestones\n" +
+      "• Update task and QA statuses without opening the dashboard\n" +
+      "• Send voice commands and I will figure out the rest\n" +
+      "• PMs can broadcast announcements through me\n\n" +
+      "Type /help to see everything I can do.\n\n" +
+      "You were warned. 😌"
+    );
+  });
+
   // /help
   bot.command("help", (ctx) => {
     ctx.reply(
-      "📖 *DEVCON\\+ PM Bot Commands*\n\n" +
+      "🤖 *Kibot — DEVCON\\+ PM Bot*\n" +
+        "_Named after the Hiligaynon word for shock\\. You'll understand why\\._\n\n" +
         "*🎙️ Voice Commands*\n" +
-        "Send a voice message to create or update tasks naturally\\.\n" +
-        'Examples: "Create a task called fix login bug" · "Mark the deploy task as done"\n\n' +
+        "Send a voice message to create or update tasks hands\\-free\\.\n" +
+        'Try: "Create a task called fix login bug" · "Mark the deploy task as done"\n\n' +
         "*Board & Tasks*\n" +
         "/board — Full task board grouped by assignee\n" +
         "/mytasks — Your currently assigned tasks\n" +
-        "/deadlines — Your tasks due in the next 7 days\n" +
+        "/deadlines — Tasks due in the next 7 days\n" +
         "/status <keyword> — Search & update a task status\n" +
         "/standup — Your active tasks for standup\n\n" +
         "*QA & Bugs*\n" +
@@ -218,7 +267,8 @@ function registerHandlers(bot: Bot) {
         "/team — Team members and roles\n" +
         "/essentials [term] — Browse or search the essentials wiki\n\n" +
         "*PM Only*\n" +
-        "/announce <message> — Send announcement to all contributors\n\n" +
+        "/announce <message> — Broadcast to all contributors\n\n" +
+        "/iamkibot — Who is Kibot\\?\n" +
         "/help — Show this message",
       { parse_mode: "MarkdownV2" }
     );
@@ -227,7 +277,7 @@ function registerHandlers(bot: Bot) {
   // /board — all open tasks grouped by assignee
   bot.command("board", async (ctx) => {
     const username = ctx.from?.username;
-    if (!username) return ctx.reply("Could not determine your Telegram username.");
+    if (!username) return ctx.reply(noUsernameMessage());
 
     const contributor = await getContributor(username).catch(() => null);
     if (!contributor) return ctx.reply(notLinkedMessage());
@@ -241,13 +291,13 @@ function registerHandlers(bot: Bot) {
 
     if (error) {
       console.error("[/board]", error);
-      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+      return ctx.reply("❌ Couldn't load the board right now. Check the dashboard or try again in a moment.");
     }
 
     const rows = (tasks ?? []) as unknown as BoardTaskRow[];
 
     if (rows.length === 0) {
-      return ctx.reply("No open tasks on the board right now. 🎉");
+      return ctx.reply("🎉 The board is completely clear. Take a screenshot — you'll want proof this happened.");
     }
 
     // Group by assignee
@@ -272,7 +322,7 @@ function registerHandlers(bot: Bot) {
     const formatTaskLine = (t: BoardTaskRow): string => {
       const due = t.due_date ? `Due ${formatDue(t.due_date)}` : "No due date";
       const isOverdue = t.due_date && new Date(new Date(t.due_date).toDateString()) < today;
-      const flag = isOverdue ? " ⚠️" : "";
+      const flag = isOverdue ? " 😱 OVERDUE" : "";
       return `  • ${t.title} — ${t.status} — ${due}${flag}`;
     };
 
@@ -317,9 +367,7 @@ function registerHandlers(bot: Bot) {
   // /mytasks
   bot.command("mytasks", async (ctx) => {
     const username = ctx.from?.username;
-    if (!username) {
-      return ctx.reply("Could not determine your Telegram username. Please set one in Telegram settings.");
-    }
+    if (!username) return ctx.reply(noUsernameMessage());
 
     const contributor = await getContributor(username).catch(() => null);
     if (!contributor) return ctx.reply(notLinkedMessage());
@@ -334,13 +382,13 @@ function registerHandlers(bot: Bot) {
 
     if (error) {
       console.error("[/mytasks]", error);
-      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+      return ctx.reply("❌ Couldn't fetch your tasks right now. Try again or check the dashboard.");
     }
 
     const rows = tasks as unknown as TaskRow[];
 
     if (!rows || rows.length === 0) {
-      return ctx.reply("You have no assigned tasks right now. 🎉");
+      return ctx.reply("🎉 No assigned tasks. Enjoy it — Kibot will be back soon enough.");
     }
 
     const lines = rows.map((t, i) => {
@@ -353,15 +401,13 @@ function registerHandlers(bot: Bot) {
       );
     });
 
-    await ctx.reply(`📋 Your open tasks:\n\n${lines.join("\n\n")}`);
+    await ctx.reply(`📋 Your open tasks (${rows.length}):\n\n${lines.join("\n\n")}`);
   });
 
   // /deadlines
   bot.command("deadlines", async (ctx) => {
     const username = ctx.from?.username;
-    if (!username) {
-      return ctx.reply("Could not determine your Telegram username.");
-    }
+    if (!username) return ctx.reply(noUsernameMessage());
 
     const contributor = await getContributor(username).catch(() => null);
     if (!contributor) return ctx.reply(notLinkedMessage());
@@ -382,32 +428,33 @@ function registerHandlers(bot: Bot) {
 
     if (error) {
       console.error("[/deadlines]", error);
-      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+      return ctx.reply("❌ Couldn't load your deadlines right now. Try again or check the dashboard.");
     }
 
     const rows = tasks as unknown as TaskRow[];
 
     if (!rows || rows.length === 0) {
-      return ctx.reply("No deadlines in the next 7 days. You're all good! ✅");
+      return ctx.reply("✅ Nothing due in the next 7 days. Go touch some grass — Kibot will find you again soon.");
     }
 
     const lines = rows.map(
       (t) => `• ${t.title} — Due ${formatDue(t.due_date)} — ${t.status}`
     );
 
-    await ctx.reply(`⏰ Upcoming deadlines (next 7 days):\n\n${lines.join("\n")}`);
+    await ctx.reply(`⏰ Coming up in the next 7 days:\n\n${lines.join("\n")}`);
   });
 
   // /status [keyword] — inline keyboards keep state in callback data (stateless)
   bot.command("status", async (ctx) => {
     const username = ctx.from?.username;
-    if (!username) {
-      return ctx.reply("Could not determine your Telegram username.");
-    }
+    if (!username) return ctx.reply(noUsernameMessage());
 
     const keyword = ctx.match?.trim();
     if (!keyword) {
-      return ctx.reply("Usage: /status <task keyword>\nExample: /status login page");
+      return ctx.reply(
+        "Tell me which task to update: /status <keyword>\n" +
+        "Example: /status login page"
+      );
     }
 
     const contributor = await getContributor(username).catch(() => null);
@@ -423,11 +470,11 @@ function registerHandlers(bot: Bot) {
 
     if (error) {
       console.error("[/status search]", error);
-      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+      return ctx.reply("❌ Couldn't search your tasks right now. Try again in a moment.");
     }
 
     if (!tasks || tasks.length === 0) {
-      return ctx.reply(`No tasks found matching "${keyword}". Try a different keyword.`);
+      return ctx.reply(`No tasks matching "${keyword}" in your board. Try a different keyword!`);
     }
 
     if (tasks.length === 1) {
@@ -440,7 +487,7 @@ function registerHandlers(bot: Bot) {
       (tasks as unknown as TaskRow[]).forEach((t) => {
         keyboard.text(t.title.slice(0, 64), `pick_task:${t.id}`).row();
       });
-      await ctx.reply(`Found ${tasks.length} matching tasks. Which one?`, {
+      await ctx.reply(`Found ${tasks.length} matching tasks — which one?`, {
         reply_markup: keyboard,
       });
     }
@@ -459,7 +506,7 @@ function registerHandlers(bot: Bot) {
     await ctx.answerCallbackQuery();
 
     if (!task) {
-      return ctx.editMessageText("Task not found. It may have been deleted.");
+      return ctx.editMessageText("❌ Task not found — it may have been deleted.");
     }
 
     await ctx.editMessageText(
@@ -485,24 +532,25 @@ function registerHandlers(bot: Bot) {
 
     if (error || !task) {
       console.error("[/status update]", error);
-      return ctx.editMessageText(
-        "Something went wrong. Please try again or check the dashboard."
-      );
+      return ctx.editMessageText("❌ Couldn't update that task. Try again or edit it on the dashboard.");
     }
 
     await ctx.editMessageText(
-      `✅ Updated "${(task as unknown as TaskRow).title}" → ${newStatus}`
+      `✅ "${(task as unknown as TaskRow).title}" is now ${newStatus}`
     );
   });
 
   // /qastatus [keyword] — search & update a QA test status
   bot.command("qastatus", async (ctx) => {
     const username = ctx.from?.username;
-    if (!username) return ctx.reply("Could not determine your Telegram username.");
+    if (!username) return ctx.reply(noUsernameMessage());
 
     const keyword = ctx.match?.trim();
     if (!keyword) {
-      return ctx.reply("Usage: /qastatus <test keyword>\nExample: /qastatus login flow");
+      return ctx.reply(
+        "Tell me which QA test to update: /qastatus <keyword>\n" +
+        "Example: /qastatus login flow"
+      );
     }
 
     const contributor = await getContributor(username).catch(() => null);
@@ -518,11 +566,11 @@ function registerHandlers(bot: Bot) {
 
     if (error) {
       console.error("[/qastatus]", error);
-      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+      return ctx.reply("❌ Couldn't search QA tests right now. Try again in a moment.");
     }
 
     if (!tests || tests.length === 0) {
-      return ctx.reply(`No QA tests found matching "${keyword}". Try a different keyword.`);
+      return ctx.reply(`No QA tests matching "${keyword}" assigned to you. Try a different keyword!`);
     }
 
     if (tests.length === 1) {
@@ -538,7 +586,7 @@ function registerHandlers(bot: Bot) {
         const cat = t.category ? ` [${t.category}]` : "";
         keyboard.text(`${t.title.slice(0, 55)}${cat}`, `pick_qa:${t.id}`).row();
       });
-      await ctx.reply(`Found ${tests.length} matching QA tests. Which one?`, {
+      await ctx.reply(`Found ${tests.length} matching tests — which one?`, {
         reply_markup: keyboard,
       });
     }
@@ -556,7 +604,7 @@ function registerHandlers(bot: Bot) {
 
     await ctx.answerCallbackQuery();
 
-    if (!test) return ctx.editMessageText("QA test not found. It may have been deleted.");
+    if (!test) return ctx.editMessageText("❌ QA test not found — it may have been deleted.");
 
     const t = test as unknown as QATestRow;
     const cat = t.category ? ` [${t.category}]` : "";
@@ -583,7 +631,7 @@ function registerHandlers(bot: Bot) {
 
     if (error || !test) {
       console.error("[/qastatus update]", error);
-      return ctx.editMessageText("Something went wrong. Please try again or check the dashboard.");
+      return ctx.editMessageText("❌ Couldn't update that test. Try again or edit it on the dashboard.");
     }
 
     const t = test as unknown as QATestRow;
@@ -591,21 +639,20 @@ function registerHandlers(bot: Bot) {
       Pass: "✅", Fail: "❌", Blocked: "🚫", "Not Run": "⬜",
     };
     await ctx.editMessageText(
-      `${emoji[newStatus] ?? "🔄"} Updated "${t.title}" → ${newStatus}`
+      `${emoji[newStatus] ?? "🔄"} "${t.title}" is now ${newStatus}`
     );
   });
 
   // /announce [message]
   bot.command("announce", async (ctx) => {
     const username = ctx.from?.username;
-    if (!username) {
-      return ctx.reply("Could not determine your Telegram username.");
-    }
+    if (!username) return ctx.reply(noUsernameMessage());
 
     const message = ctx.match?.trim();
     if (!message) {
       return ctx.reply(
-        "Usage: /announce <message>\nExample: /announce Sprint 3 starts Monday!"
+        "What's the announcement? /announce <message>\n" +
+        "Example: /announce Sprint 3 starts Monday!"
       );
     }
 
@@ -618,7 +665,7 @@ function registerHandlers(bot: Bot) {
       roleName.includes("product manager") || roleName.includes("project manager");
 
     if (!isPM) {
-      return ctx.reply("Only Project Managers can send announcements.");
+      return ctx.reply("⚠️ Only Project Managers can send announcements — which is probably for the best, honestly. Reach out to your PM if you need to post one!");
     }
 
     const supabase = createServiceRoleClient();
@@ -635,7 +682,7 @@ function registerHandlers(bot: Bot) {
 
     if (insertError || !announcement) {
       console.error("[/announce insert]", insertError);
-      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+      return ctx.reply("❌ Couldn't save the announcement. Try again or post it directly on the dashboard.");
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -647,18 +694,18 @@ function registerHandlers(bot: Bot) {
     const json = await res.json();
 
     if (!json.ok) {
-      return ctx.reply(`Failed to send: ${json.error ?? "unknown error"}`);
+      return ctx.reply(`❌ Announcement saved but delivery failed: ${json.error ?? "unknown error"}`);
     }
 
     await ctx.reply(
-      `📣 Announcement sent to ${json.sent} contributor${json.sent !== 1 ? "s" : ""}.`
+      `📣 Sent to ${json.sent} contributor${json.sent !== 1 ? "s" : ""}. Brace for kibot.`
     );
   });
 
   // /meetings — list the contributor's upcoming meetings (next 7 days)
   bot.command("meetings", async (ctx) => {
     const username = ctx.from?.username;
-    if (!username) return ctx.reply("Could not determine your Telegram username.");
+    if (!username) return ctx.reply(noUsernameMessage());
 
     const contributor = await getContributor(username).catch(() => null);
     if (!contributor) return ctx.reply(notLinkedMessage());
@@ -680,7 +727,7 @@ function registerHandlers(bot: Bot) {
 
     if (error) {
       console.error("[/meetings]", error);
-      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+      return ctx.reply("❌ Couldn't load your meetings right now. Try again or check the dashboard.");
     }
 
     const meetings = (attendeeRows ?? [])
@@ -688,7 +735,7 @@ function registerHandlers(bot: Bot) {
       .filter(Boolean) as unknown as MeetingRow[];
 
     if (meetings.length === 0) {
-      return ctx.reply("No meetings scheduled in the next 7 days. 📅");
+      return ctx.reply("📅 No meetings in the next 7 days. Either you're very free or someone forgot to invite you. Either way — enjoy!");
     }
 
     meetings.sort((a, b) => a.meeting_date.localeCompare(b.meeting_date) || a.start_time.localeCompare(b.start_time));
@@ -702,13 +749,13 @@ function registerHandlers(bot: Bot) {
       return `• [${m.type}] ${m.title}\n   ${date} at ${time} (${m.timezone})${link}`;
     });
 
-    await ctx.reply(`📅 Your upcoming meetings:\n\n${lines.join("\n\n")}`);
+    await ctx.reply(`📅 Your upcoming meetings (${meetings.length}):\n\n${lines.join("\n\n")}`);
   });
 
   // /standup — prompt contributor to post today's standup update
   bot.command("standup", async (ctx) => {
     const username = ctx.from?.username;
-    if (!username) return ctx.reply("Could not determine your Telegram username.");
+    if (!username) return ctx.reply(noUsernameMessage());
 
     const contributor = await getContributor(username).catch(() => null);
     if (!contributor) return ctx.reply(notLinkedMessage());
@@ -723,22 +770,23 @@ function registerHandlers(bot: Bot) {
       .limit(5);
 
     const rows = (tasks as unknown as TaskRow[]) ?? [];
+    const name = contributor.full_name?.split(" ")[0] ?? contributor.email;
 
-    const greeting = `Good day, ${contributor.full_name ?? contributor.email}! 👋\n\nHere are your active tasks:\n`;
     const taskLines = rows.length > 0
       ? rows.map((t, i) => `${i + 1}. ${t.title} — ${t.status}`).join("\n")
-      : "No active tasks right now.";
+      : "No active tasks right now — you're free! 🎉";
 
     await ctx.reply(
-      greeting + taskLines +
-      "\n\nUse /status <keyword> to update any task, or head to the dashboard for full details."
+      `Hey ${name}! 👋 Daily kibot check-in — here's what's waiting for you:\n\n` +
+      taskLines +
+      "\n\nUse /status <keyword> to update any task, or head to the dashboard if the list is giving you actual kibot."
     );
   });
 
   // /milestones — show current milestone statuses and progress
   bot.command("milestones", async (ctx) => {
     const username = ctx.from?.username;
-    if (!username) return ctx.reply("Could not determine your Telegram username.");
+    if (!username) return ctx.reply(noUsernameMessage());
 
     const contributor = await getContributor(username).catch(() => null);
     if (!contributor) return ctx.reply(notLinkedMessage());
@@ -753,13 +801,13 @@ function registerHandlers(bot: Bot) {
 
     if (error) {
       console.error("[/milestones]", error);
-      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+      return ctx.reply("❌ Couldn't load milestones right now. Try again or check the dashboard.");
     }
 
     const milestones = (data as unknown as MilestoneRow[]) ?? [];
 
     if (milestones.length === 0) {
-      return ctx.reply("No active milestones right now.");
+      return ctx.reply("📍 No active milestones at the moment.");
     }
 
     const lines = milestones.map((m) => {
@@ -778,7 +826,7 @@ function registerHandlers(bot: Bot) {
   // /essentials [term] — browse sections or search entries
   bot.command("essentials", async (ctx) => {
     const username = ctx.from?.username;
-    if (!username) return ctx.reply("Could not determine your Telegram username.");
+    if (!username) return ctx.reply(noUsernameMessage());
 
     const contributor = await getContributor(username).catch(() => null);
     if (!contributor) return ctx.reply(notLinkedMessage());
@@ -793,13 +841,13 @@ function registerHandlers(bot: Bot) {
 
     if (error) {
       console.error("[/essentials]", error);
-      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+      return ctx.reply("❌ Couldn't load essentials right now. Try again or check the dashboard.");
     }
 
     const sections = (data as unknown as EssentialSectionRow[]) ?? [];
 
     if (sections.length === 0) {
-      return ctx.reply("No essentials sections found. Ask your PM to set them up.");
+      return ctx.reply("📚 No essentials sections yet. Ask your PM to set them up on the dashboard.");
     }
 
     if (!term) {
@@ -811,7 +859,7 @@ function registerHandlers(bot: Bot) {
         return `• ${icon}${s.title} (${count} ${count === 1 ? "entry" : "entries"})`;
       });
       await ctx.reply(
-        `📚 Essentials sections:\n\n${lines.join("\n")}\n\nView all: ${appUrl}/essentials`
+        `📚 Essentials sections:\n\n${lines.join("\n")}\n\nView all: ${appUrl}/essentials\n\nTip: /essentials <term> to search entries.`
       );
       return;
     }
@@ -829,7 +877,7 @@ function registerHandlers(bot: Bot) {
     }
 
     if (matches.length === 0) {
-      return ctx.reply(`No essentials entries found for "${term}".`);
+      return ctx.reply(`🔍 No results for "${term}". Try a different keyword or /essentials to browse all sections.`);
     }
 
     const lines = matches.slice(0, 15).map((m) => {
@@ -840,12 +888,13 @@ function registerHandlers(bot: Bot) {
     });
 
     const suffix = matches.length > 15 ? `\n\n…and ${matches.length - 15} more. Check the dashboard for the full list.` : "";
-    await ctx.reply(`🔍 Essentials matching "${term}":\n\n${lines.join("\n\n")}${suffix}`);
+    await ctx.reply(`🔍 Results for "${term}":\n\n${lines.join("\n\n")}${suffix}`);
   });
+
   // /qa — QA test summary grouped by project
   bot.command("qa", async (ctx) => {
     const username = ctx.from?.username;
-    if (!username) return ctx.reply("Could not determine your Telegram username.");
+    if (!username) return ctx.reply(noUsernameMessage());
 
     const contributor = await getContributor(username).catch(() => null);
     if (!contributor) return ctx.reply(notLinkedMessage());
@@ -858,13 +907,13 @@ function registerHandlers(bot: Bot) {
 
     if (error) {
       console.error("[/qa]", error);
-      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+      return ctx.reply("❌ Couldn't load QA tests right now. Try again or check the dashboard.");
     }
 
     const rows = (tests ?? []) as unknown as QATestRow[];
 
     if (rows.length === 0) {
-      return ctx.reply("No QA tests found. Add some on the QA page.");
+      return ctx.reply("🧪 No QA tests found. Either everything is perfect or no one's been looking. (Both options should give you kibot.)");
     }
 
     // Group by project
@@ -929,7 +978,7 @@ function registerHandlers(bot: Bot) {
   // /bugs — open and in-progress bugs grouped by severity
   bot.command("bugs", async (ctx) => {
     const username = ctx.from?.username;
-    if (!username) return ctx.reply("Could not determine your Telegram username.");
+    if (!username) return ctx.reply(noUsernameMessage());
 
     const contributor = await getContributor(username).catch(() => null);
     if (!contributor) return ctx.reply(notLinkedMessage());
@@ -944,13 +993,13 @@ function registerHandlers(bot: Bot) {
 
     if (error) {
       console.error("[/bugs]", error);
-      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+      return ctx.reply("❌ Couldn't load bugs right now. Try again or check the dashboard.");
     }
 
     const rows = (bugs ?? []) as unknown as BugRow[];
 
     if (rows.length === 0) {
-      return ctx.reply("No open or in-progress bugs right now. 🎉");
+      return ctx.reply("🎉 No open bugs. I'm as kibot as you are. Enjoy this rare moment.");
     }
 
     const SEVERITY_EMOJI: Record<string, string> = {
@@ -996,7 +1045,7 @@ function registerHandlers(bot: Bot) {
   // /team — list all contributors with roles
   bot.command("team", async (ctx) => {
     const username = ctx.from?.username;
-    if (!username) return ctx.reply("Could not determine your Telegram username.");
+    if (!username) return ctx.reply(noUsernameMessage());
 
     const contributor = await getContributor(username).catch(() => null);
     if (!contributor) return ctx.reply(notLinkedMessage());
@@ -1010,13 +1059,13 @@ function registerHandlers(bot: Bot) {
 
     if (error) {
       console.error("[/team]", error);
-      return ctx.reply("Something went wrong. Please try again or check the dashboard.");
+      return ctx.reply("❌ Couldn't load the team right now. Try again or check the dashboard.");
     }
 
     const members = (data ?? []) as unknown as ContributorRow2[];
 
     if (members.length === 0) {
-      return ctx.reply("No contributors found.");
+      return ctx.reply("👥 No contributors found. Ask the PM to add some!");
     }
 
     // Group by role
@@ -1040,19 +1089,19 @@ function registerHandlers(bot: Bot) {
   // ─── Voice messages ────────────────────────────────────────────────────────
   bot.on("message:voice", async (ctx) => {
     const username = ctx.from?.username;
-    if (!username) return ctx.reply("Could not determine your Telegram username.");
+    if (!username) return ctx.reply(noUsernameMessage());
 
     const contributor = await getContributor(username).catch(() => null);
     if (!contributor) return ctx.reply(notLinkedMessage());
 
     if (!process.env.GROQ_API_KEY) {
       return ctx.reply(
-        "⚠️ Voice commands are not configured yet.\n" +
-        "Ask the admin to add GROQ_API_KEY to the server."
+        "🎙️ Voice commands aren't set up yet.\n" +
+        "Ask the admin to configure GROQ_API_KEY and we're good to go!"
       );
     }
 
-    const thinking = await ctx.reply("🎙️ Transcribing…");
+    const thinking = await ctx.reply("🎙️ Transcribing… (please don't say something that will kibot me)");
     const chatId = ctx.chat.id;
     const msgId = thinking.message_id;
 
@@ -1069,13 +1118,13 @@ function registerHandlers(bot: Bot) {
       // 2. Transcribe with Whisper
       const transcript = await transcribeVoice(audioBuffer);
       if (!transcript) {
-        await editStatus("❌ Couldn't understand the audio. Please speak clearly and try again.");
+        await editStatus("❌ I got kibot by that audio and understood nothing. Speak a bit clearer and try again!");
         return;
       }
 
       await editStatus(`🎙️ Heard: "${transcript}"\n\n⏳ Processing…`);
 
-      // 3. Load context for Claude
+      // 3. Load context
       const supabase = createServiceRoleClient();
       const [{ data: myTasks }, { data: projectRows }, { data: teamRows }] = await Promise.all([
         supabase.from("tasks").select("title,status").contains("assignee_ids", [contributor.id]).not("status", "eq", "Done").limit(20),
@@ -1104,7 +1153,7 @@ function registerHandlers(bot: Bot) {
           projectId = (projectRows![0] as { id: string }).id;
         }
         if (!projectId) {
-          await editStatus(`🎙️ Heard: "${transcript}"\n\n❌ No projects found. Create one on the dashboard first.`);
+          await editStatus(`🎙️ Heard: "${transcript}"\n\n❌ No projects found. Create one on the dashboard first, then try again.`);
           return;
         }
 
@@ -1119,7 +1168,7 @@ function registerHandlers(bot: Bot) {
           groupId = g?.id ?? null;
         }
         if (!groupId) {
-          await editStatus(`🎙️ Heard: "${transcript}"\n\n❌ No groups found in the project. Add one on the dashboard first.`);
+          await editStatus(`🎙️ Heard: "${transcript}"\n\n❌ No groups found in that project. Add a group on the dashboard first.`);
           return;
         }
 
@@ -1145,11 +1194,11 @@ function registerHandlers(bot: Bot) {
 
         if (error) {
           console.error("[voice:create_task]", error);
-          await editStatus(`🎙️ Heard: "${transcript}"\n\n❌ Failed to create the task. Please try again.`);
+          await editStatus(`🎙️ Heard: "${transcript}"\n\n❌ Couldn't create the task. Try again or add it manually on the dashboard.`);
           return;
         }
 
-        await editStatus(intent.reply ?? `✅ Created task: "${intent.task_title}"`);
+        await editStatus(intent.reply ?? `✅ Task created: "${intent.task_title}"`);
 
       } else if (intent.action === "update_status" && intent.task_keyword && intent.new_status) {
         const { data: tasks } = await supabase
@@ -1162,7 +1211,7 @@ function registerHandlers(bot: Bot) {
         if (!tasks || tasks.length === 0) {
           await editStatus(
             `🎙️ Heard: "${transcript}"\n\n` +
-            `❌ No task found matching "${intent.task_keyword}". Try /status to update manually.`
+            `❌ No task matching "${intent.task_keyword}" in your board. Try /status to update manually.`
           );
           return;
         }
@@ -1170,14 +1219,14 @@ function registerHandlers(bot: Bot) {
         if (tasks.length === 1) {
           const task = tasks[0] as unknown as TaskRow;
           await supabase.from("tasks").update({ status: intent.new_status as TaskStatus }).eq("id", task.id);
-          await editStatus(intent.reply ?? `✅ Updated "${task.title}" → ${intent.new_status}`);
+          await editStatus(intent.reply ?? `✅ "${task.title}" is now ${intent.new_status}`);
         } else {
           const keyboard = new InlineKeyboard();
           (tasks as unknown as TaskRow[]).forEach((t) => {
             keyboard.text(t.title.slice(0, 64), `voice_status:${t.id}:${encodeURIComponent(intent.new_status!)}`).row();
           });
           await ctx.api.editMessageText(chatId, msgId,
-            `🎙️ Heard: "${transcript}"\n\nFound ${tasks.length} matching tasks. Which one to mark as "${intent.new_status}"?`,
+            `🎙️ Heard: "${transcript}"\n\nFound ${tasks.length} matching tasks. Which one should be marked "${intent.new_status}"?`,
             { reply_markup: keyboard }
           );
         }
@@ -1185,7 +1234,11 @@ function registerHandlers(bot: Bot) {
       } else {
         await editStatus(
           `🎙️ Heard: "${transcript}"\n\n` +
-          (intent.reply ?? `I'm not sure what to do with that. Try:\n• "Create a task called fix the login bug"\n• "Mark the deploy task as done"`)
+          (intent.reply ??
+            `I heard you but I'm kibot — not sure what to do with that.\n` +
+            `Try something like:\n` +
+            `• "Create a task called fix the login bug"\n` +
+            `• "Mark the deploy task as done"`)
         );
       }
 
@@ -1208,15 +1261,15 @@ function registerHandlers(bot: Bot) {
       .select("id,title")
       .single();
     await ctx.answerCallbackQuery();
-    if (error || !task) return ctx.editMessageText("❌ Failed to update. Please try again.");
-    await ctx.editMessageText(`✅ Updated "${(task as unknown as TaskRow).title}" → ${newStatus}`);
+    if (error || !task) return ctx.editMessageText("❌ Couldn't update that task. Try /status to update manually.");
+    await ctx.editMessageText(`✅ "${(task as unknown as TaskRow).title}" is now ${newStatus}`);
   });
 
   bot.on("message:text", (ctx) => {
     // Only reply to unknown commands in private chats — avoid spamming groups
     const isPrivate = ctx.chat?.type === "private";
     if (isPrivate && ctx.message.text?.startsWith("/")) {
-      ctx.reply("Unknown command. Type /help to see what I can do.");
+      ctx.reply("Unknown command. Type /help to see everything I can do — fair warning: your task list might give you kibot.");
     }
   });
 }
