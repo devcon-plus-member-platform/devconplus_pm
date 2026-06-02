@@ -15,10 +15,11 @@ export default function DueDateCell({ task, onUpdate }: Props) {
   const [val, setVal] = useState(task.due_date ?? "");
   const overdue = isOverdue(task.due_date) && task.status !== "Done";
 
-  function save() {
+  function save(override?: string) {
+    const next = override !== undefined ? override : val;
     setEditing(false);
-    if (val !== (task.due_date ?? "")) {
-      onUpdate({ due_date: val || null });
+    if (next !== (task.due_date ?? "")) {
+      onUpdate({ due_date: next || null });
     }
   }
 
@@ -31,7 +32,7 @@ export default function DueDateCell({ task, onUpdate }: Props) {
             type="date"
             value={val}
             onChange={(e) => setVal(e.target.value)}
-            onBlur={save}
+            onBlur={() => save()}
             onKeyDown={(e) => {
               if (e.key === "Enter") save();
               if (e.key === "Escape") { setEditing(false); setVal(task.due_date ?? ""); }
@@ -40,7 +41,7 @@ export default function DueDateCell({ task, onUpdate }: Props) {
           />
           {val && (
             <button
-              onMouseDown={(e) => { e.preventDefault(); setVal(""); save(); }}
+              onMouseDown={(e) => { e.preventDefault(); setVal(""); save(""); }}
               className="text-gray-400 hover:text-red-500 text-xs"
               title="Clear"
             >
