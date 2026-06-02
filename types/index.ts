@@ -303,6 +303,37 @@ export interface Risk {
   linked_task?: { id: string; title: string };
 }
 
+// ─── GitHub Integration ───────────────────────────────────────────────────────
+
+export interface GitHubConnection {
+  id: string;
+  project_id: string | null;
+  repo_full_name: string;
+  webhook_secret: string;
+  created_by: string | null;
+  created_at: string;
+  // joined
+  project?: { id: string; name: string };
+}
+
+export interface GitHubEvent {
+  id: string;
+  connection_id: string;
+  event_type: string;
+  action: string | null;
+  pr_number: number | null;
+  pr_title: string | null;
+  pr_url: string | null;
+  pr_state: string | null;
+  merged: boolean;
+  author_login: string | null;
+  author_avatar_url: string | null;
+  branch_from: string | null;
+  branch_to: string | null;
+  repo_full_name: string;
+  created_at: string;
+}
+
 // ─── Auth store ───────────────────────────────────────────────────────────────
 
 export interface AuthStore {
