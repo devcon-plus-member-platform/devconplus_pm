@@ -29,8 +29,26 @@ async function resolveSession(
   if (contributor) {
     setGuestEmail(null);
     setContributor(contributor as Contributor);
+    return;
+  }
+
+  // No contributor record yet — auto-create from auth metadata (new sign-up)
+  const fullName =
+    (user.user_metadata?.full_name as string | undefined) ??
+    (user.user_metadata?.name as string | undefined) ??
+    null;
+
+  const { data: created } = await supabase
+    .from("contributors")
+    .insert({ email: user.email!, full_name: fullName })
+    .select("*, role:roles(*)")
+    .single();
+
+  if (created) {
+    setGuestEmail(null);
+    setContributor(created as Contributor);
   } else {
-    // Authenticated but not a contributor — read-only guest
+    // Insert may be blocked by RLS — fall back to guest mode
     setContributor(null);
     setGuestEmail(user.email ?? null);
   }
@@ -44,7 +62,23 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     const supabase = createClient();
 
-    // Hydrate store from the active session on mount
+    // Remember-me check: if the user opted out and this is a fresh browser
+    // session (sessionStorage cleared), sign them out immediately.
+    const noRemember = localStorage.getItem("devcon-no-remember");
+    const sessionAlive = sessionStorage.getItem("devcon-session-alive");
+
+    if (noRemember && !sessionAlive) {
+      supabase.auth.signOut().then(() => {
+        setContributor(null);
+        setGuestEmail(null);
+        router.push("/login");
+      });
+      return;
+    }
+
+    // Mark this browser session as alive so refreshes don't sign the user out
+    sessionStorage.setItem("devcon-session-alive", "1");
+
     resolveSession(supabase, setContributor, setGuestEmail);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -53,7 +87,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         setGuestEmail(null);
         router.push("/login");
       } else if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session?.user) {
-        // Re-resolve after OAuth redirect or token refresh
+        sessionStorage.setItem("devcon-session-alive", "1");
         await resolveSession(supabase, setContributor, setGuestEmail);
       }
     });

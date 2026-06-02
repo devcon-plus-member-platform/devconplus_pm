@@ -5,7 +5,6 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // If env vars are missing, let the request through — pages will handle auth
   if (!supabaseUrl || !supabaseKey) {
     return NextResponse.next({ request });
   }
@@ -19,9 +18,7 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -36,9 +33,21 @@ export async function middleware(request: NextRequest) {
 
     const { pathname } = request.nextUrl;
 
-    // Unauthenticated user hitting /dashboard → let them through (guest mode)
-    // Authenticated non-admin hitting /login → redirect to dashboard
-    if (pathname === "/login" && user) {
+    // Always allow public paths through
+    const isPublic =
+      pathname === "/login" ||
+      pathname.startsWith("/auth/") ||
+      pathname.startsWith("/api/");
+
+    // Unauthenticated on a protected path → redirect to login
+    if (!user && !isPublic) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = "/login";
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Already authenticated and hitting login → go to dashboard
+    if (user && pathname === "/login") {
       const dashboardUrl = request.nextUrl.clone();
       dashboardUrl.pathname = "/dashboard";
       return NextResponse.redirect(dashboardUrl);
@@ -46,7 +55,6 @@ export async function middleware(request: NextRequest) {
 
     return supabaseResponse;
   } catch {
-    // Never let a middleware crash take down the entire site
     return NextResponse.next({ request });
   }
 }
