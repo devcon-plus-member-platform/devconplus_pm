@@ -152,14 +152,12 @@ export default function EntryRow({ entry: e, isPM, searchQuery, onEdit, onDelete
           <p className="text-[11px] text-gray-400 italic mt-0.5">{highlight(e.note, searchQuery)}</p>
         )}
       </td>
-      {isPM && (
-        <td className="px-4 py-2.5">
-          <div className="flex items-center gap-1">
-            <button onClick={() => onEdit(e)} className="text-xs text-brand-600 hover:bg-brand-50 px-2 py-1 rounded-lg">Edit</button>
-            <button onClick={() => { if (confirm("Delete this entry?")) onDelete(e.id); }} className="text-xs text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg">Delete</button>
-          </div>
-        </td>
-      )}
+      <td className="px-4 py-2.5">
+        <div className="flex items-center gap-1">
+          <button onClick={() => onEdit(e)} className="text-xs text-brand-600 hover:bg-brand-50 px-2 py-1 rounded-lg">Edit</button>
+          <button onClick={() => { if (confirm("Delete this entry?")) onDelete(e.id); }} className="text-xs text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg">Delete</button>
+        </div>
+      </td>
     </tr>
   );
 }

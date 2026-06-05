@@ -7,9 +7,11 @@ interface Props {
   milestone: Milestone;
   onLogProgress: (m: Milestone) => void;
   onViewHistory: (m: Milestone) => void;
+  onEdit: (m: Milestone) => void;
+  onDelete: (id: string) => void;
 }
 
-export default function MilestoneCard({ milestone: m, onLogProgress, onViewHistory }: Props) {
+export default function MilestoneCard({ milestone: m, onLogProgress, onViewHistory, onEdit, onDelete }: Props) {
   const pct = latestProgress(m);
   const latest = latestProgressEntry(m);
   const isAchieved = m.status === "Achieved";
@@ -33,6 +35,21 @@ export default function MilestoneCard({ milestone: m, onLogProgress, onViewHisto
           {m.description && (
             <p className="text-xs text-gray-400 line-clamp-2 mt-0.5">{m.description}</p>
           )}
+        </div>
+        {/* Edit / Delete controls */}
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => onEdit(m)}
+            className="text-xs text-gray-500 hover:bg-gray-100 px-2 py-1 rounded-lg"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => { if (confirm(`Delete milestone "${m.title}"?`)) onDelete(m.id); }}
+            className="text-xs text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg"
+          >
+            Delete
+          </button>
         </div>
       </div>
 

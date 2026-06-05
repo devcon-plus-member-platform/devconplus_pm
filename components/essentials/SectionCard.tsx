@@ -112,7 +112,7 @@ export default function SectionCard({
                   <th className="text-left px-4 py-2 text-xs font-medium text-gray-400">Label</th>
                   <th className="text-left px-4 py-2 text-xs font-medium text-gray-400">Type</th>
                   <th className="text-left px-4 py-2 text-xs font-medium text-gray-400">Value</th>
-                  {isPM && <th className="px-4 py-2" />}
+                  <th className="px-4 py-2" />
                 </tr>
               </thead>
               <tbody>

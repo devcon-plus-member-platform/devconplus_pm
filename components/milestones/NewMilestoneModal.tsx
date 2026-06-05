@@ -7,24 +7,27 @@ import type { Milestone, MilestoneStatus } from "@/types";
 const STATUS_OPTIONS: MilestoneStatus[] = ["Not Started", "In Progress", "At Risk", "Achieved", "Missed"];
 
 interface Props {
+  milestone?: Milestone | null;
   projectId?: string;
   contributorId?: string;
-  onCreated: (milestone: Milestone) => void;
+  onSaved: (milestone: Milestone) => void;
   onClose: () => void;
 }
 
-export default function NewMilestoneModal({ projectId, contributorId, onCreated, onClose }: Props) {
+export default function NewMilestoneModal({ milestone, projectId, contributorId, onSaved, onClose }: Props) {
+  const isEdit = Boolean(milestone);
+  const today = new Date().toISOString().split("T")[0];
+
   const [form, setForm] = useState({
-    title: "",
-    description: "",
-    target_date: "",
-    status: "Not Started" as MilestoneStatus,
+    title: milestone?.title ?? "",
+    description: milestone?.description ?? "",
+    target_date: milestone?.target_date ?? "",
+    status: (milestone?.status ?? "Not Started") as MilestoneStatus,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const today = new Date().toISOString().split("T")[0];
-  const canSubmit = form.title.trim() && form.target_date && form.target_date > today;
+  const canSubmit = form.title.trim() && form.target_date && (isEdit || form.target_date > today);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -32,31 +35,31 @@ export default function NewMilestoneModal({ projectId, contributorId, onCreated,
     setSaving(true);
     setError(null);
 
-    const res = await fetch("/api/milestones", {
-      method: "POST",
+    const url = isEdit ? `/api/milestones/${milestone!.id}` : "/api/milestones";
+    const method = isEdit ? "PATCH" : "POST";
+
+    const res = await fetch(url, {
+      method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: form.title.trim(),
-        description: form.description || null,
-        target_date: form.target_date,
-        status: form.status,
-        project_id: projectId ?? null,
-        created_by: contributorId ?? null,
-      }),
+      body: JSON.stringify(
+        isEdit
+          ? { title: form.title.trim(), description: form.description || null, target_date: form.target_date, status: form.status }
+          : { title: form.title.trim(), description: form.description || null, target_date: form.target_date, status: form.status, project_id: projectId ?? null, created_by: contributorId ?? null }
+      ),
     });
 
     const json = await res.json();
     if (!json.ok) {
-      setError(json.error ?? "Failed to create milestone.");
+      setError(json.error ?? "Failed to save milestone.");
       setSaving(false);
       return;
     }
 
-    onCreated(json.milestone as Milestone);
+    onSaved(json.milestone as Milestone);
   }
 
   return (
-    <Modal open onClose={onClose} title="New Milestone" className="max-w-md">
+    <Modal open onClose={onClose} title={isEdit ? "Edit Milestone" : "New Milestone"} className="max-w-md">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -89,14 +92,14 @@ export default function NewMilestoneModal({ projectId, contributorId, onCreated,
             </label>
             <input
               type="date"
-              min={today}
+              min={isEdit ? undefined : today}
               value={form.target_date}
               onChange={(e) => setForm((f) => ({ ...f, target_date: e.target.value }))}
               className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-300"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Initial Status</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
             <select
               value={form.status}
               onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as MilestoneStatus }))}
@@ -118,7 +121,7 @@ export default function NewMilestoneModal({ projectId, contributorId, onCreated,
             disabled={!canSubmit || saving}
             className="px-4 py-2 text-sm bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-40 font-medium"
           >
-            {saving ? "Creating…" : "Create Milestone"}
+            {saving ? "Saving…" : isEdit ? "Save Changes" : "Create Milestone"}
           </button>
         </div>
       </form>

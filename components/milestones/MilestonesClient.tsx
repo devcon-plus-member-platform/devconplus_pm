@@ -25,6 +25,7 @@ export default function MilestonesClient({ initialMilestones, contributors: _con
   const [statusFilter, setStatusFilter] = useState<MilestoneStatus | "All">("All");
   const [sortBy, setSortBy] = useState<SortKey>("date");
   const [showNew, setShowNew] = useState(false);
+  const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
   const [loggingProgress, setLoggingProgress] = useState<Milestone | null>(null);
   const [viewingHistory, setViewingHistory] = useState<Milestone | null>(null);
 
@@ -74,6 +75,16 @@ export default function MilestonesClient({ initialMilestones, contributors: _con
   const handleCreated = useCallback((milestone: Milestone) => {
     setMilestones((prev) => [...prev, { ...milestone, progress: [] }]);
     setShowNew(false);
+  }, []);
+
+  const handleEdited = useCallback((updated: Milestone) => {
+    setMilestones((prev) => prev.map((m) => m.id === updated.id ? { ...updated, progress: m.progress } : m));
+    setEditingMilestone(null);
+  }, []);
+
+  const handleDeleted = useCallback((id: string) => {
+    fetch(`/api/milestones/${id}`, { method: "DELETE" });
+    setMilestones((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
   const handleLogged = useCallback((progress: MilestoneProgress, updatedMilestone: Milestone | null) => {
@@ -176,6 +187,8 @@ export default function MilestonesClient({ initialMilestones, contributors: _con
               milestone={m}
               onLogProgress={(m) => setLoggingProgress(m)}
               onViewHistory={(m) => setViewingHistory(m)}
+              onEdit={(m) => setEditingMilestone(m)}
+              onDelete={handleDeleted}
             />
           ))}
         </div>
@@ -192,6 +205,8 @@ export default function MilestonesClient({ initialMilestones, contributors: _con
                 milestone={m}
                 onLogProgress={(m) => setLoggingProgress(m)}
                 onViewHistory={(m) => setViewingHistory(m)}
+                onEdit={(m) => setEditingMilestone(m)}
+                onDelete={handleDeleted}
               />
             ))}
           </div>
@@ -210,8 +225,15 @@ export default function MilestonesClient({ initialMilestones, contributors: _con
         <NewMilestoneModal
           projectId={projectFilter !== "all" ? projectFilter : undefined}
           contributorId={contributor?.id}
-          onCreated={handleCreated}
+          onSaved={handleCreated}
           onClose={() => setShowNew(false)}
+        />
+      )}
+      {editingMilestone && (
+        <NewMilestoneModal
+          milestone={editingMilestone}
+          onSaved={handleEdited}
+          onClose={() => setEditingMilestone(null)}
         />
       )}
       {loggingProgress && (

@@ -79,3 +79,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     );
   }
 }
+
+export async function DELETE(_request: NextRequest, context: RouteContext) {
+  try {
+    const { id } = await context.params;
+    const supabase = createServiceRoleClient();
+    const { error } = await supabase.from("milestones").delete().eq("id", id);
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return NextResponse.json(
+      { ok: false, error: err instanceof Error ? err.message : "Unknown error" },
+      { status: 500 }
+    );
+  }
+}
