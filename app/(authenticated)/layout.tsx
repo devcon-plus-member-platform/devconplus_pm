@@ -1,5 +1,6 @@
 import Sidebar from "@/components/ui/Sidebar";
 import AuthProvider from "@/components/ui/AuthProvider";
+import KibotChat from "@/components/kibot/KibotChat";
 
 export default function AuthenticatedLayout({
   children,
@@ -12,6 +13,7 @@ export default function AuthenticatedLayout({
         <Sidebar />
         <main className="flex-1 overflow-auto md:pt-0">{children}</main>
       </div>
+      <KibotChat />
     </AuthProvider>
   );
 }
