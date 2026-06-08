@@ -67,6 +67,11 @@ export default function DashboardClient({ initialProjects, contributors }: Props
   const loadBoardData = useCallback(
     async (projectId: string) => {
       setLoading(true);
+      // Safety valve: clear loading state after 12s regardless of query outcome.
+      // Supabase can queue queries while waiting for a token refresh; if that
+      // refresh hangs (e.g. auth endpoint unreachable), Promise.all never
+      // resolves and the spinner would spin forever without this guard.
+      const safetyTimer = setTimeout(() => setLoading(false), 12_000);
       try {
         const [
           { data: grps, error: grpsErr },
@@ -101,6 +106,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
       } catch (err) {
         console.error("[loadBoardData] unexpected error:", err);
       } finally {
+        clearTimeout(safetyTimer);
         setLoading(false);
       }
     },
