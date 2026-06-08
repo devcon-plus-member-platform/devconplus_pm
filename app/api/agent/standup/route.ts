@@ -189,7 +189,13 @@ async function runStandup() {
 
   // Broadcast to Telegram group
   const telegramText = `📋 Daily Standup — ${today}\n\n${digestBody}`;
-  await sendTelegramMessage(telegramText.slice(0, 4096));
+  let telegramError: string | undefined;
+  try {
+    await sendTelegramMessage(telegramText.slice(0, 4096));
+  } catch (err) {
+    telegramError = err instanceof Error ? err.message : String(err);
+    console.error("[standup] Telegram send error:", err);
+  }
 
-  return NextResponse.json({ ok: true, date: today, length: digestBody.length });
+  return NextResponse.json({ ok: true, date: today, length: digestBody.length, ...(telegramError && { telegram_error: telegramError }) });
 }

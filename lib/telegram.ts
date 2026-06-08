@@ -1308,18 +1308,23 @@ function buildQAStatusKeyboard(testId: string): InlineKeyboard {
 
 // ─── Legacy helpers kept for any future direct-message usage ──────────────────
 
-export async function sendTelegramMessage(text: string): Promise<void> {
+export async function sendTelegramMessage(text: string, parseMode?: "Markdown" | "MarkdownV2" | "HTML"): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_GROUP_CHAT_ID;
   if (!token || !chatId) {
-    console.warn("[telegram] TELEGRAM_BOT_TOKEN or TELEGRAM_GROUP_CHAT_ID not set");
-    return;
+    throw new Error("TELEGRAM_BOT_TOKEN or TELEGRAM_GROUP_CHAT_ID is not set");
   }
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+  const body: Record<string, unknown> = { chat_id: chatId, text };
+  if (parseMode) body.parse_mode = parseMode;
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text }),
+    body: JSON.stringify(body),
   });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Telegram API error ${res.status}: ${detail}`);
+  }
 }
 
 export async function sendTelegramDM(chatId: string, text: string): Promise<void> {

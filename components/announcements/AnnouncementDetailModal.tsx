@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Modal from "@/components/ui/Modal";
 import { formatDate } from "@/lib/utils";
 import type { Announcement } from "@/types";
@@ -26,6 +27,34 @@ interface Props {
 
 export default function AnnouncementDetailModal({ announcement, onClose, onEdit, onSend }: Props) {
   const isDraft = !announcement.sent_at;
+  const [gcSending, setGcSending] = useState(false);
+  const [gcStatus, setGcStatus] = useState<"idle" | "sent" | "error">("idle");
+  const [gcError, setGcError] = useState<string | null>(null);
+
+  async function handleSendToGC() {
+    setGcSending(true);
+    setGcStatus("idle");
+    setGcError(null);
+    try {
+      const res = await fetch("/api/announce-gc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ announcement_id: announcement.id }),
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        setGcStatus("error");
+        setGcError(json.error ?? "Failed to send to GC");
+      } else {
+        setGcStatus("sent");
+      }
+    } catch {
+      setGcStatus("error");
+      setGcError("Network error — check your connection.");
+    } finally {
+      setGcSending(false);
+    }
+  }
 
   return (
     <Modal open onClose={onClose} title={announcement.title} className="max-w-xl">
@@ -51,23 +80,37 @@ export default function AnnouncementDetailModal({ announcement, onClose, onEdit,
         dangerouslySetInnerHTML={{ __html: renderMarkdown(announcement.body) }}
       />
 
-      {/* Actions for drafts */}
-      {isDraft && (
-        <div className="flex items-center gap-2 mt-6 pt-4 border-t border-gray-100">
-          <button
-            onClick={onEdit}
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700"
-          >
-            Edit
-          </button>
-          <button
-            onClick={() => onSend(announcement.id)}
-            className="px-3 py-1.5 text-sm bg-brand-600 text-white rounded-lg hover:bg-brand-700 font-medium"
-          >
-            📣 Send to Everyone
-          </button>
-        </div>
-      )}
+      {/* Actions */}
+      <div className="flex items-center gap-2 mt-6 pt-4 border-t border-gray-100 flex-wrap">
+        {isDraft && (
+          <>
+            <button
+              onClick={onEdit}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => onSend(announcement.id)}
+              className="px-3 py-1.5 text-sm bg-brand-600 text-white rounded-lg hover:bg-brand-700 font-medium"
+            >
+              📣 Send to Everyone
+            </button>
+          </>
+        )}
+
+        <button
+          onClick={handleSendToGC}
+          disabled={gcSending || gcStatus === "sent"}
+          className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700 disabled:opacity-40 ml-auto"
+        >
+          {gcSending ? "Sending…" : gcStatus === "sent" ? "✓ Sent to GC" : "Send to GC"}
+        </button>
+
+        {gcStatus === "error" && gcError && (
+          <p className="w-full text-xs text-red-500 mt-1">{gcError}</p>
+        )}
+      </div>
     </Modal>
   );
 }

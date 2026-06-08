@@ -94,11 +94,18 @@ async function runEscalation() {
     `Please update the task status or due date on the dashboard.${appUrl ? `\n${appUrl}/dashboard` : ""}`,
   ].join("\n");
 
-  await sendTelegramMessage(message.slice(0, 4096));
+  let telegramError: string | undefined;
+  try {
+    await sendTelegramMessage(message.slice(0, 4096));
+  } catch (err) {
+    telegramError = err instanceof Error ? err.message : String(err);
+    console.error("[overdue-escalation] Telegram send error:", err);
+  }
 
   return NextResponse.json({
     ok: true,
     escalated: totalOverdue,
     contributors: byAssignee.size,
+    ...(telegramError && { telegram_error: telegramError }),
   });
 }

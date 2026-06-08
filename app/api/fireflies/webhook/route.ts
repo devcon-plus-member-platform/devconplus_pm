@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
 
     // Send to Telegram group chat
     const telegramText = [
-      `📋 *Meeting Recap: ${title}*`,
+      `📋 Meeting Recap: ${title}`,
       `📅 ${dateStr}`,
       ``,
       body,
@@ -171,9 +171,15 @@ export async function POST(request: NextRequest) {
       .filter(Boolean)
       .join("\n");
 
-    await sendTelegramMessage(telegramText).catch((err) =>
-      console.error("[fireflies/webhook] Telegram send error:", err)
-    );
+    try {
+      await sendTelegramMessage(telegramText);
+    } catch (err) {
+      console.error("[fireflies/webhook] Telegram send error:", err);
+      return NextResponse.json(
+        { ok: false, error: `Recap saved (id: ${(announcement as { id: string }).id}) but GC send failed: ${err instanceof Error ? err.message : String(err)}` },
+        { status: 500 }
+      );
+    }
 
     console.log(`[fireflies/webhook] Recap posted — announcement ${(announcement as { id: string }).id}`);
     return NextResponse.json({ ok: true, announcement_id: (announcement as { id: string }).id });
