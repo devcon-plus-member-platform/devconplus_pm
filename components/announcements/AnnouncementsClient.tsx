@@ -65,17 +65,21 @@ export default function AnnouncementsClient({ initialAnnouncements, contributors
 
     // Upsert the announcement record first
     if (existingId) {
-      await supabase
+      const { error: updateError } = await supabase
         .from("announcements")
         .update({ title, body })
         .eq("id", existingId);
+      if (updateError) { showToast(`Failed to update: ${updateError.message}`, "error"); return; }
     } else {
-      const { data } = await supabase
+      const { data, error: insertError } = await supabase
         .from("announcements")
         .insert({ title, body })
         .select("id")
         .single();
-      if (!data) { showToast("Failed to save announcement.", "error"); return; }
+      if (insertError || !data) {
+        showToast(`Failed to save: ${insertError?.message ?? "unknown error"}`, "error");
+        return;
+      }
       announcementId = data.id as string;
     }
 

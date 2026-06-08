@@ -41,8 +41,11 @@ export default function AnnouncementForm({ draft, onSaveDraft, onSendToAll, onCa
 
   const handleSendToAll = useCallback(async () => {
     setSending(true);
-    await onSendToAll(title.trim(), body.trim(), draft?.id);
-    setSending(false);
+    try {
+      await onSendToAll(title.trim(), body.trim(), draft?.id);
+    } finally {
+      setSending(false);
+    }
   }, [title, body, draft?.id, onSendToAll]);
 
   return (
