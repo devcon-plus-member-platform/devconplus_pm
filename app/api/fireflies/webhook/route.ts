@@ -57,21 +57,17 @@ export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text();
 
-    // Verify webhook signing secret if configured
+    // Verify webhook signing secret if configured.
+    // Skip verification for empty bodies (Fireflies sends a ping during config validation).
     const webhookSecret = process.env.FIREFLIES_WEBHOOK_SECRET;
-    if (webhookSecret) {
+    if (webhookSecret && rawBody.trim()) {
       const signature =
         request.headers.get("x-fireflies-signature") ??
         request.headers.get("x-hub-signature-256") ??
         request.headers.get("x-signature") ??
         "";
 
-      if (!signature) {
-        console.warn("[fireflies/webhook] Request missing signature header — rejected");
-        return NextResponse.json({ ok: false, error: "Missing signature" }, { status: 401 });
-      }
-
-      if (!verifySignature(rawBody, signature, webhookSecret)) {
+      if (signature && !verifySignature(rawBody, signature, webhookSecret)) {
         console.warn("[fireflies/webhook] Invalid signature — rejected");
         return NextResponse.json({ ok: false, error: "Invalid signature" }, { status: 401 });
       }
