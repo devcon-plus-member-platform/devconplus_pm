@@ -40,6 +40,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
   const [groups, setGroups] = useState<Group[]>([]);
   const [tasksByGroup, setTasksByGroup] = useState<Record<string, Task[]>>({});
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [showNewProject, setShowNewProject] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -67,11 +68,15 @@ export default function DashboardClient({ initialProjects, contributors }: Props
   const loadBoardData = useCallback(
     async (projectId: string) => {
       setLoading(true);
-      // Safety valve: clear loading state after 12s regardless of query outcome.
+      setLoadError(false);
+      // Safety valve: clear loading state after 8 s regardless of query outcome.
       // Supabase can queue queries while waiting for a token refresh; if that
       // refresh hangs (e.g. auth endpoint unreachable), Promise.all never
       // resolves and the spinner would spin forever without this guard.
-      const safetyTimer = setTimeout(() => setLoading(false), 12_000);
+      const safetyTimer = setTimeout(() => {
+        setLoading(false);
+        setLoadError(true);
+      }, 8_000);
       try {
         const [
           { data: grps, error: grpsErr },
@@ -91,8 +96,14 @@ export default function DashboardClient({ initialProjects, contributors }: Props
             .order("position"),
         ]);
 
-        if (grpsErr) console.error("[loadBoardData] groups error:", grpsErr);
-        if (tasksErr) console.error("[loadBoardData] tasks error:", tasksErr);
+        if (grpsErr) {
+          console.error("[loadBoardData] groups error:", grpsErr);
+          setLoadError(true);
+        }
+        if (tasksErr) {
+          console.error("[loadBoardData] tasks error:", tasksErr);
+          setLoadError(true);
+        }
 
         const byGroup: Record<string, Task[]> = {};
         for (const g of grps ?? []) {
@@ -105,6 +116,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
         setTasksByGroup(byGroup);
       } catch (err) {
         console.error("[loadBoardData] unexpected error:", err);
+        setLoadError(true);
       } finally {
         clearTimeout(safetyTimer);
         setLoading(false);
@@ -117,6 +129,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
     if (!authReady || !selectedProjectId) {
       setGroups([]);
       setTasksByGroup({});
+      setLoadError(false);
       return;
     }
     loadBoardData(selectedProjectId);
@@ -287,7 +300,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
         position,
       })
       .select(
-        "*, assignee:contributors(id,email,full_name,role_id,telegram_username,created_at), attachments:task_attachments(*)"
+        "*, assignee:contributors!assignee_id(id,email,full_name,role_id,telegram_username,created_at), attachments:task_attachments(*)"
       )
       .single();
 
@@ -319,8 +332,15 @@ export default function DashboardClient({ initialProjects, contributors }: Props
       ),
     }));
 
-    // Strip joined fields before sending to DB
-    const { assignee: _a, attachments: _at, ...dbUpdates } = updates as Task & {
+    // Strip joined/virtual fields before sending to DB.
+    // assignee_ids is included only when the column exists (migration 004).
+    // We always keep it in the payload — Supabase will error if the column is
+    // absent, and we revert the optimistic update in that case.
+    const {
+      assignee: _a,
+      attachments: _at,
+      ...dbUpdates
+    } = updates as Task & {
       assignee?: unknown;
       attachments?: unknown;
     };
@@ -330,13 +350,16 @@ export default function DashboardClient({ initialProjects, contributors }: Props
       .update(dbUpdates)
       .eq("id", id);
 
-    if (error && prevTask) {
-      setTasksByGroup((prev) => ({
-        ...prev,
-        [groupId]: (prev[groupId] ?? []).map((t) =>
-          t.id === id ? prevTask : t
-        ),
-      }));
+    if (error) {
+      console.error("[updateTask] error:", error);
+      if (prevTask) {
+        setTasksByGroup((prev) => ({
+          ...prev,
+          [groupId]: (prev[groupId] ?? []).map((t) =>
+            t.id === id ? prevTask : t
+          ),
+        }));
+      }
       return;
     }
 
@@ -577,7 +600,12 @@ export default function DashboardClient({ initialProjects, contributors }: Props
             <DashboardOverview tasks={allTasks} currentContributor={currentContributor} selectedProjectId={selectedProjectId ?? ""} />
             {selectedProject ? (
               <div className="flex-1 overflow-hidden">
-                <ProjectBoard project={selectedProject} loading={loading || !authReady} />
+                <ProjectBoard
+                  project={selectedProject}
+                  loading={loading || !authReady}
+                  loadError={loadError}
+                  onRetry={() => selectedProjectId && loadBoardData(selectedProjectId)}
+                />
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-3">

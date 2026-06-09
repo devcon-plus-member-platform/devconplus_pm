@@ -453,6 +453,7 @@ export type Database = {
         };
         Relationships: [];
       };
+      // NOTE: contributors.deleted_at added via migration 004
       projects: {
         Row: {
           id: string; name: string; description: string | null;
@@ -487,7 +488,8 @@ export type Database = {
         Row: {
           id: string; group_id: string; project_id: string;
           title: string; description: string | null;
-          assignee_id: string | null; status: string; priority: string;
+          assignee_id: string | null; assignee_ids: string[];
+          status: string; priority: string;
           definition_of_done: string | null;
           timeline_start: string | null; timeline_end: string | null;
           due_date: string | null; pr_link: string | null;
@@ -496,7 +498,8 @@ export type Database = {
         Insert: {
           id?: string; group_id: string; project_id: string;
           title: string; description?: string | null;
-          assignee_id?: string | null; status?: string; priority?: string;
+          assignee_id?: string | null; assignee_ids?: string[];
+          status?: string; priority?: string;
           definition_of_done?: string | null;
           timeline_start?: string | null; timeline_end?: string | null;
           due_date?: string | null; pr_link?: string | null;
@@ -505,7 +508,8 @@ export type Database = {
         Update: {
           id?: string; group_id?: string; project_id?: string;
           title?: string; description?: string | null;
-          assignee_id?: string | null; status?: string; priority?: string;
+          assignee_id?: string | null; assignee_ids?: string[];
+          status?: string; priority?: string;
           definition_of_done?: string | null;
           timeline_start?: string | null; timeline_end?: string | null;
           due_date?: string | null; pr_link?: string | null;

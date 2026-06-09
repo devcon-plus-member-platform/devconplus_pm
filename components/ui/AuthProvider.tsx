@@ -7,6 +7,9 @@ import { useAuthStore } from "@/lib/store";
 import type { Contributor } from "@/types";
 import type { User } from "@supabase/supabase-js";
 
+// PGRST116 = "no rows returned" — not a real error when using .single()
+const NOT_FOUND_CODE = "PGRST116";
+
 // Looks up (or creates) the contributor record for an already-authenticated user.
 // Does NOT call getUser() — the caller provides the user from the session event.
 async function resolveContributor(
@@ -15,7 +18,7 @@ async function resolveContributor(
   setContributor: (c: Contributor | null) => void,
   setGuestEmail: (e: string | null) => void
 ) {
-  const { data: contributor } = await supabase
+  const { data: contributor, error: selectError } = await supabase
     .from("contributors")
     .select("*, role:roles(*)")
     .eq("email", user.email!)
@@ -28,13 +31,26 @@ async function resolveContributor(
     return;
   }
 
-  // Auto-create from auth metadata (new sign-up flow)
+  // Only attempt auto-create when the row genuinely doesn't exist.
+  // Any other error (network, schema) means we should NOT try to insert —
+  // we'd just get another error and confuse the auth state.
+  if (selectError && selectError.code !== NOT_FOUND_CODE) {
+    console.error("[resolveContributor] select error:", selectError);
+    setContributor(null);
+    setGuestEmail(user.email ?? null);
+    return;
+  }
+
+  // Auto-create from auth metadata.
+  // This handles: email-confirmed sign-ups where auth/callback INSERT failed,
+  // and OAuth sign-ins (no callback).
+  // The self-insert RLS policy (migration 004) allows this.
   const fullName =
     (user.user_metadata?.full_name as string | undefined) ??
     (user.user_metadata?.name as string | undefined) ??
     null;
 
-  const { data: created } = await supabase
+  const { data: created, error: insertError } = await supabase
     .from("contributors")
     .insert({ email: user.email!, full_name: fullName })
     .select("*, role:roles(*)")
@@ -44,6 +60,7 @@ async function resolveContributor(
     setGuestEmail(null);
     setContributor(created as Contributor);
   } else {
+    if (insertError) console.error("[resolveContributor] insert error:", insertError);
     setContributor(null);
     setGuestEmail(user.email ?? null);
   }
@@ -86,9 +103,10 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
           try {
             if (session?.user) {
               // Race against a timeout so authReady is always set even if
-              // the contributors query hangs (e.g. network issues).
+              // the contributors query hangs (e.g. Supabase cold-start / network).
+              // 3 s is enough for a warm Supabase instance; cold starts are ~2 s.
               const resolveTimeout = new Promise<void>((_, reject) =>
-                setTimeout(() => reject(new Error("auth_resolve_timeout")), 5000)
+                setTimeout(() => reject(new Error("auth_resolve_timeout")), 3000)
               );
               await Promise.race([
                 resolveContributor(supabase, session.user, setContributor, setGuestEmail),

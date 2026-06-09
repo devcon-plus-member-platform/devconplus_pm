@@ -9,9 +9,11 @@ import type { Project } from "@/types";
 interface Props {
   project: Project;
   loading: boolean;
+  loadError?: boolean;
+  onRetry?: () => void;
 }
 
-export default function ProjectBoard({ project, loading }: Props) {
+export default function ProjectBoard({ project, loading, loadError, onRetry }: Props) {
   const { groups, addGroup, canEdit } = useBoardContext();
   const [newGroupName, setNewGroupName] = useState("");
   const [addingGroup, setAddingGroup] = useState(false);
@@ -34,6 +36,26 @@ export default function ProjectBoard({ project, loading }: Props) {
           </svg>
           Loading board…
         </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
+        <svg className="w-8 h-8 text-red-300" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+        </svg>
+        <p className="text-sm font-medium text-gray-500">Failed to load board data</p>
+        <p className="text-xs text-gray-400">Check your connection or Supabase project status.</p>
+        {onRetry && (
+          <button
+            onClick={onRetry}
+            className="mt-1 px-4 py-2 text-sm font-medium text-brand-600 border border-brand-200 hover:bg-brand-50 rounded-lg transition-colors"
+          >
+            Retry
+          </button>
+        )}
       </div>
     );
   }
