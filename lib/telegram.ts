@@ -155,7 +155,7 @@ async function parseVoiceIntent(
         `Context:\n${ctx}\n\n` +
         `Voice: "${transcript}"\n\n` +
         `Schema: {"action":"create_task"|"update_status"|"unknown","task_title":"...","project_name":"...","group_name":"...","assignee_name":"...","status":"...","task_keyword":"...","new_status":"...","reply":"..."}\n` +
-        `Valid statuses: "Not Started","In Progress","Done","Help","I am Stuck","For Improvements"\n` +
+        `Valid statuses: "Not Started","In Progress","Review","Done","Help","I am Stuck","For Improvements"\n` +
         `create_task: fill task_title (required), optionally project_name, group_name, assignee_name, status\n` +
         `update_status: fill task_keyword (words from task title), new_status\n` +
         `reply: one friendly confirmation line\n` +
@@ -1278,6 +1278,7 @@ function registerHandlers(bot: Bot) {
 
 const STATUS_OPTIONS: TaskStatus[] = [
   "In Progress",
+  "Review",
   "Done",
   "Help",
   "I am Stuck",

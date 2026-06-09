@@ -43,6 +43,7 @@ export interface Group {
 export type TaskStatus =
   | "Not Started"
   | "In Progress"
+  | "Review"
   | "Done"
   | "Help"
   | "I am Stuck"

@@ -8,6 +8,7 @@ import type { Task, TaskStatus } from "@/types";
 const STATUS_OPTIONS: { value: TaskStatus; label: string; classes: string }[] = [
   { value: "Not Started",      label: "Not Started",      classes: "bg-gray-100 text-gray-600" },
   { value: "In Progress",      label: "In Progress",      classes: "bg-blue-100 text-blue-700" },
+  { value: "Review",           label: "Review",           classes: "bg-orange-100 text-orange-700" },
   { value: "Done",             label: "Done",             classes: "bg-green-100 text-green-700" },
   { value: "Help",             label: "Help",             classes: "bg-yellow-100 text-yellow-700" },
   { value: "I am Stuck",       label: "I am Stuck",       classes: "bg-red-100 text-red-700" },

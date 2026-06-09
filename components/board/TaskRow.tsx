@@ -20,6 +20,7 @@ import type { Task, TaskStatus } from "@/types";
 const STATUS_STRIPE: Record<TaskStatus, string> = {
   "Not Started":      "#9ca3af",
   "In Progress":      "#3b82f6",
+  "Review":           "#f97316",
   "Done":             "#22c55e",
   "Help":             "#f59e0b",
   "I am Stuck":       "#ef4444",

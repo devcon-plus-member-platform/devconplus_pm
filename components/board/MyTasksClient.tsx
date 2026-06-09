@@ -7,6 +7,7 @@ import type { MyTask } from "@/app/(authenticated)/my-tasks/page";
 const STATUS_COLORS: Record<string, string> = {
   "Not Started":      "bg-gray-100 text-gray-600",
   "In Progress":      "bg-blue-100 text-blue-700",
+  "Review":           "bg-orange-100 text-orange-700",
   "Done":             "bg-green-100 text-green-700",
   "Help":             "bg-yellow-100 text-yellow-700",
   "I am Stuck":       "bg-red-100 text-red-700",
