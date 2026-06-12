@@ -57,11 +57,13 @@ export default function GitClient({ initialEvents, initialConnections, projects 
   async function handleAddConnection(repoFullName: string, projectId: string | null, secret: string) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any;
-    const { data } = await sb
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await sb
       .from("github_connections")
-      .insert({ repo_full_name: repoFullName, project_id: projectId, webhook_secret: secret })
+      .insert({ repo_full_name: repoFullName, project_id: projectId, webhook_secret: secret, created_by: user?.id ?? null })
       .select("*, project:projects!project_id(id,name)")
       .single();
+    if (error) { alert(`Failed to save connection: ${error.message}`); return; }
     if (data) setConnections(prev => [...prev, data as GitHubConnection]);
   }
 
