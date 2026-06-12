@@ -50,7 +50,10 @@ export default function DashboardOverview({ tasks, currentContributor, selectedP
 
     return tasks
       .filter((t) => {
-        if (!adminView && t.assignee_id !== currentContributor.id) return false;
+        if (!adminView) {
+          const ids: string[] = t.assignee_ids?.length ? t.assignee_ids : (t.assignee_id ? [t.assignee_id] : []);
+          if (!ids.includes(currentContributor.id)) return false;
+        }
         if (t.status === "Done") return false;
         if (!t.due_date) return false;
         const d = new Date(t.due_date);

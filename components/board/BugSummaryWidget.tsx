@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import type { Bug } from "@/types";
@@ -16,7 +16,7 @@ interface BugCounts {
 }
 
 export default function BugSummaryWidget({ projectId }: Props) {
-  const supabase = createClient();
+  const supabase = useRef(createClient()).current;
   const [counts, setCounts] = useState<BugCounts>({ open: 0, critical: 0, resolvedThisWeek: 0 });
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export default function BugSummaryWidget({ projectId }: Props) {
       });
     }
     fetchCounts();
-  }, [projectId, supabase]);
+  }, [projectId]);
 
   return (
     <div className="bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm col-span-2 sm:col-span-1">

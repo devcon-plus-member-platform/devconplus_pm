@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createClient } from "@/lib/supabase";
 import QARow from "./QARow";
 import NewBugModal from "@/components/bugs/NewBugModal";
@@ -40,7 +40,7 @@ function exportToCsv(tests: QATest[], contributors: Contributor[], projectName: 
 }
 
 export default function QAClient({ initialProjects, contributors }: Props) {
-  const supabase = createClient();
+  const supabase = useRef(createClient()).current;
 
   const [selectedProjectId, setSelectedProjectId] = useState<string>(
     initialProjects[0]?.id ?? ""
@@ -71,7 +71,8 @@ export default function QAClient({ initialProjects, contributors }: Props) {
       setTests((data as QATest[]) ?? []);
       setLoading(false);
     },
-    [supabase]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
   );
 
   useEffect(() => {

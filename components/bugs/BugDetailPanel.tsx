@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/store";
@@ -33,7 +33,7 @@ interface Props {
 }
 
 export default function BugDetailPanel({ bug, contributors, onUpdate, onClose }: Props) {
-  const supabase = createClient();
+  const supabase = useRef(createClient()).current;
   const currentContributor = useAuthStore((s) => s.contributor);
   const [activity, setActivity] = useState<BugActivity[]>([]);
   const [prLink, setPrLink] = useState(bug.pr_link ?? "");
@@ -49,7 +49,7 @@ export default function BugDetailPanel({ bug, contributors, onUpdate, onClose }:
       .eq("bug_id", bug.id)
       .order("changed_at", { ascending: false })
       .then(({ data }) => setActivity((data as BugActivity[]) ?? []));
-  }, [bug.id, supabase]);
+  }, [bug.id]);
 
   // Generate signed URLs for screenshots
   useEffect(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase";
 import BugCard from "./BugCard";
 import BugDetailPanel from "./BugDetailPanel";
@@ -26,7 +26,7 @@ interface Props {
 }
 
 export default function BugsClient({ initialBugs, projects, contributors }: Props) {
-  const supabase = createClient();
+  const supabase = useRef(createClient()).current;
   const [bugs, setBugs] = useState<Bug[]>(initialBugs);
   const [selectedProjectId, setSelectedProjectId] = useState(projects[0]?.id ?? "");
   const [statusFilter, setStatusFilter] = useState<BugStatus | typeof ALL>(ALL);
@@ -64,7 +64,8 @@ export default function BugsClient({ initialBugs, projects, contributors }: Prop
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [supabase]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleUpdate(id: string, updates: Partial<Bug>) {
     const { assignee: _a, reporter: _r, ...dbUpdates } = updates as Bug & { assignee?: unknown; reporter?: unknown };

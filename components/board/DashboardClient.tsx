@@ -113,13 +113,11 @@ export default function DashboardClient({ initialProjects, contributors }: Props
         // A newer load has already started; discard these (now stale) results.
         if (loadIdRef.current !== loadId) return;
 
-        if (grpsErr) {
-          console.error("[loadBoardData] groups error:", grpsErr);
+        if (grpsErr || tasksErr) {
+          if (grpsErr) console.error("[loadBoardData] groups error:", grpsErr);
+          if (tasksErr) console.error("[loadBoardData] tasks error:", tasksErr);
           setLoadError(true);
-        }
-        if (tasksErr) {
-          console.error("[loadBoardData] tasks error:", tasksErr);
-          setLoadError(true);
+          return;
         }
 
         const byGroup: Record<string, Task[]> = {};
