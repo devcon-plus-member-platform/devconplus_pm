@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
         const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
         const completion = await groq.chat.completions.create({
           model: "llama-3.3-70b-versatile",
-          max_tokens: 200,
+          max_tokens: 600,
           temperature: 0.4,
           messages: [
             {
@@ -241,9 +241,9 @@ export async function POST(request: NextRequest) {
                 "Write a TL;DR meeting recap for Telegram.\n\n" +
                 "Rules:\n" +
                 "- One sentence: what the meeting decided or accomplished\n" +
-                "- 2–3 bullet points max — only the most important points, no fluff\n" +
-                "- Action items prefixed with ✅ — max 3, only if clearly stated\n" +
-                "- Total length: under 80 words\n" +
+                "- Bullet points covering all key decisions and updates — no fluff, no filler\n" +
+                "- Action items prefixed with ✅ — include all that were clearly stated, one line each\n" +
+                "- Be as brief as possible but leave nothing important out\n" +
                 "- No greetings, sign-offs, or dates (added automatically)\n" +
                 "- If there is nothing important to flag, say so in one line",
             },
