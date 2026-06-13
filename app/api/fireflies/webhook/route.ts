@@ -245,7 +245,10 @@ export async function POST(request: NextRequest) {
                 "- Include ALL action items grouped by person, prefixed with ✅ — do not drop any person or any item\n" +
                 "- Remove filler words and padding, but keep every distinct point\n" +
                 "- No greetings, sign-offs, or dates (added automatically)\n" +
-                "- Plain text only — no markdown bold or headers",
+                "- Plain text only — no markdown bold or headers\n" +
+                "- Add a blank line between the intro sentence and the bullet points\n" +
+                "- Add a blank line between the bullet points section and the action items section\n" +
+                "- Add a blank line between each person's action items block",
             },
             {
               role: "user",
@@ -284,9 +287,10 @@ export async function POST(request: NextRequest) {
       `📅 ${dateStr}`,
       ``,
       body,
-      firefliesUrl ? `\n🔗 Full transcript: ${firefliesUrl}` : "",
+      ``,
+      firefliesUrl ? `🔗 Full transcript: ${firefliesUrl}` : "",
     ]
-      .filter(Boolean)
+      .filter((line) => line !== undefined && line !== null)
       .join("\n");
 
     try {
