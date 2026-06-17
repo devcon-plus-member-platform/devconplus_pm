@@ -51,6 +51,16 @@ function verifySignature(rawBody: string, signature: string, secret: string): bo
   }
 }
 
+interface FirefliesApiTranscript {
+  id?: string;
+  title?: string;
+  date?: number;        // Unix timestamp in milliseconds
+  duration?: number;
+  fireflies_url?: string;
+  participants?: Array<string | { displayName?: string; email?: string }>;
+  summary?: FirefliesSummary;
+}
+
 async function fetchFirefliesTranscript(
   transcriptId: string,
   apiKey: string
@@ -67,7 +77,7 @@ async function fetchFirefliesTranscript(
           transcript(id: $id) {
             id
             title
-            dateString
+            date
             duration
             fireflies_url
             participants
@@ -78,7 +88,6 @@ async function fetchFirefliesTranscript(
               short_summary
               overview
               action_items
-              outline
             }
           }
         }`,
@@ -91,17 +100,31 @@ async function fetchFirefliesTranscript(
       return null;
     }
 
-    const json = await res.json() as { data?: { transcript?: FirefliesTranscriptData & { dateString?: string } } };
+    const json = await res.json() as { data?: { transcript?: FirefliesApiTranscript }; errors?: { message: string }[] };
+
+    if (json?.errors?.length) {
+      console.warn("[fireflies/webhook] Fireflies GraphQL errors:", JSON.stringify(json.errors));
+    }
+
     const t = json?.data?.transcript;
     if (!t) return null;
 
-    // Normalise dateString → date so downstream code stays consistent
+    // date is a Unix timestamp in ms — convert to ISO string
+    const dateIso = t.date ? new Date(t.date).toISOString() : undefined;
+
+    // participants can be plain email strings or objects with displayName/email
+    const participants = Array.isArray(t.participants)
+      ? t.participants.map((p) =>
+          typeof p === "string" ? p : (p.displayName ?? p.email ?? "Unknown")
+        )
+      : [];
+
     return {
       title: t.title,
-      date: t.dateString ?? t.date,
+      date: dateIso,
       duration: t.duration,
       fireflies_url: t.fireflies_url,
-      participants: t.participants,
+      participants,
       summary: t.summary,
     };
   } catch (err) {
