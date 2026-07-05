@@ -38,7 +38,7 @@ export async function buildDailyStandup(): Promise<string> {
     { data: rawBugs },
     { data: rawRisks },
   ] = await Promise.all([
-    supabase.from("projects").select("id,name").order("created_at"),
+    supabase.from("projects").select("id,name").eq("status", "Active").order("created_at"),
     supabase
       .from("tasks")
       .select("id,title,status,due_date,project_id,assignee:contributors!assignee_id(full_name,email)")
@@ -66,12 +66,14 @@ export async function buildDailyStandup(): Promise<string> {
   const risks = (rawRisks ?? []) as unknown as RiskRow[];
   const projectList = (projects ?? []) as Array<{ id: string; name: string }>;
 
-  const milestoneProgress = milestones.map(m => {
-    const sorted = [...(m.progress ?? [])].sort((a, b) => b.logged_date.localeCompare(a.logged_date));
-    const pct = sorted[0]?.progress_percent ?? 0;
-    const projectName = projectList.find(p => p.id === m.project_id)?.name ?? "Unknown";
-    return { title: m.title, pct, projectName };
-  });
+  const milestoneProgress = milestones
+    .filter(m => !m.project_id || projectList.some(p => p.id === m.project_id))
+    .map(m => {
+      const sorted = [...(m.progress ?? [])].sort((a, b) => b.logged_date.localeCompare(a.logged_date));
+      const pct = sorted[0]?.progress_percent ?? 0;
+      const projectName = projectList.find(p => p.id === m.project_id)?.name ?? "Unknown";
+      return { title: m.title, pct, projectName };
+    });
 
   const dateStr = new Date().toLocaleDateString("en-PH", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",

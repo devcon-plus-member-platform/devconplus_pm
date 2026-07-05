@@ -20,10 +20,13 @@ export interface Contributor {
   role?: Role;
 }
 
+export type ProjectStatus = "Active" | "Inactive";
+
 export interface Project {
   id: string;
   name: string;
   description: string | null;
+  status: ProjectStatus;
   created_by: string | null;
   created_at: string;
   // joined

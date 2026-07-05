@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import type { Group, Task, Contributor, TaskAttachment } from "@/types";
+import type { Group, Task, Contributor, TaskAttachment, ProjectStatus } from "@/types";
 
 export interface BoardContextValue {
   // Data
@@ -14,6 +14,7 @@ export interface BoardContextValue {
 
   // Project actions
   updateProject: (id: string, name: string) => Promise<void>;
+  updateProjectStatus: (id: string, status: ProjectStatus) => Promise<void>;
 
   // Group actions
   toggleGroupCollapse: (groupId: string) => void;

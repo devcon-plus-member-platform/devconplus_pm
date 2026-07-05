@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useBoardContext } from "./BoardContext";
 import GroupSection from "./GroupSection";
+import { ProjectStatusBadge } from "@/components/ui/Badge";
 import type { Project } from "@/types";
 
 interface Props {
@@ -14,7 +15,7 @@ interface Props {
 }
 
 export default function ProjectBoard({ project, loading, loadError, onRetry }: Props) {
-  const { groups, addGroup, canEdit, updateProject } = useBoardContext();
+  const { groups, addGroup, canEdit, updateProject, updateProjectStatus } = useBoardContext();
   const [newGroupName, setNewGroupName] = useState("");
   const [addingGroup, setAddingGroup] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -80,30 +81,43 @@ export default function ProjectBoard({ project, loading, loadError, onRetry }: P
       {/* Board header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white shrink-0">
         <div className="min-w-0">
-          {editingName ? (
-            <input
-              autoFocus
-              value={nameVal}
-              onChange={(e) => setNameVal(e.target.value)}
-              onBlur={handleNameBlur}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleNameBlur();
-                if (e.key === "Escape") {
-                  setNameVal(project.name);
-                  setEditingName(false);
-                }
-              }}
-              className="text-base font-semibold text-gray-900 leading-tight bg-white border border-brand-300 rounded-md px-2 py-0.5 -ml-2 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 transition-shadow"
-            />
-          ) : (
+          <div className="flex items-center gap-2">
+            {editingName ? (
+              <input
+                autoFocus
+                value={nameVal}
+                onChange={(e) => setNameVal(e.target.value)}
+                onBlur={handleNameBlur}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleNameBlur();
+                  if (e.key === "Escape") {
+                    setNameVal(project.name);
+                    setEditingName(false);
+                  }
+                }}
+                className="text-base font-semibold text-gray-900 leading-tight bg-white border border-brand-300 rounded-md px-2 py-0.5 -ml-2 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 transition-shadow"
+              />
+            ) : (
+              <button
+                onClick={() => canEdit && setEditingName(true)}
+                className="text-base font-semibold text-gray-900 leading-tight truncate text-left hover:opacity-75 transition-opacity"
+                title={canEdit ? "Click to rename" : undefined}
+              >
+                {project.name}
+              </button>
+            )}
             <button
-              onClick={() => canEdit && setEditingName(true)}
-              className="text-base font-semibold text-gray-900 leading-tight truncate text-left hover:opacity-75 transition-opacity"
-              title={canEdit ? "Click to rename" : undefined}
+              onClick={() =>
+                canEdit &&
+                updateProjectStatus(project.id, project.status === "Active" ? "Inactive" : "Active")
+              }
+              disabled={!canEdit}
+              title={canEdit ? "Click to toggle Active/Inactive" : undefined}
+              className={canEdit ? "hover:opacity-75 transition-opacity shrink-0" : "shrink-0"}
             >
-              {project.name}
+              <ProjectStatusBadge status={project.status} />
             </button>
-          )}
+          </div>
           {project.description && (
             <p className="text-xs text-gray-400 mt-0.5 truncate">{project.description}</p>
           )}

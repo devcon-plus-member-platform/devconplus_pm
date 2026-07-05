@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { TaskStatus, QAStatus } from "@/types";
+import type { TaskStatus, QAStatus, ProjectStatus } from "@/types";
 
 // Role badge
 export function RoleBadge({
@@ -57,6 +57,25 @@ export function QAStatusBadge({ status }: { status: QAStatus }) {
       className={cn(
         "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
         QA_STATUS_STYLES[status]
+      )}
+    >
+      {status}
+    </span>
+  );
+}
+
+// Project status badge
+const PROJECT_STATUS_STYLES: Record<ProjectStatus, string> = {
+  "Active":   "bg-green-100 text-green-700",
+  "Inactive": "bg-gray-100 text-gray-500",
+};
+
+export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
+        PROJECT_STATUS_STYLES[status]
       )}
     >
       {status}

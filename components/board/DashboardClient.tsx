@@ -581,6 +581,18 @@ export default function DashboardClient({ initialProjects, contributors }: Props
     if (prev && prev.name !== name) logActivity("renamed", "project", name);
   }
 
+  async function updateProjectStatus(id: string, status: Project["status"]) {
+    if (!canEdit) return;
+    const prev = projects.find((p) => p.id === id);
+    setProjects((p) => p.map((proj) => (proj.id === id ? { ...proj, status } : proj)));
+    const { error } = await supabase.from("projects").update({ status }).eq("id", id);
+    if (error) {
+      if (prev) setProjects((p) => p.map((proj) => (proj.id === id ? prev : proj)));
+      return;
+    }
+    if (prev) logActivity(status === "Active" ? "reactivated" : "archived", "project", prev.name);
+  }
+
   // ─── Render ─────────────────────────────────────────────────────────────────
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
   const allTasks = Object.values(tasksByGroup).flat();
@@ -595,6 +607,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
         collapsedGroups,
         canEdit,
         updateProject,
+        updateProjectStatus,
         toggleGroupCollapse,
         addGroup,
         updateGroup,

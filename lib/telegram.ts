@@ -68,7 +68,7 @@ interface BugRow {
   title: string;
   severity: string;
   status: string;
-  project: { name: string } | null;
+  project: { name: string; status: string } | null;
   assignee: { full_name: string | null; email: string } | null;
 }
 
@@ -288,7 +288,8 @@ function registerHandlers(bot: Bot) {
     const supabase = createServiceRoleClient();
     const { data: tasks, error } = await supabase
       .from("tasks")
-      .select("id,title,status,due_date,project:projects!project_id(name),assignee:contributors!assignee_id(id,full_name,email)")
+      .select("id,title,status,due_date,project:projects!project_id!inner(name,status),assignee:contributors!assignee_id(id,full_name,email)")
+      .eq("project.status", "Active")
       .not("status", "eq", "Done")
       .order("due_date", { ascending: true, nullsFirst: false });
 
@@ -378,7 +379,8 @@ function registerHandlers(bot: Bot) {
     const supabase = createServiceRoleClient();
     const { data: tasks, error } = await supabase
       .from("tasks")
-      .select("id,title,status,due_date,project:projects!project_id(name),group:groups!group_id(name)")
+      .select("id,title,status,due_date,project:projects!project_id!inner(name,status),group:groups!group_id(name)")
+      .eq("project.status", "Active")
       .contains("assignee_ids", [contributor.id])
       .not("status", "eq", "Done")
       .order("due_date", { ascending: true, nullsFirst: false });
@@ -422,7 +424,8 @@ function registerHandlers(bot: Bot) {
     const supabase = createServiceRoleClient();
     const { data: tasks, error } = await supabase
       .from("tasks")
-      .select("id,title,status,due_date,project:projects!project_id(name)")
+      .select("id,title,status,due_date,project:projects!project_id!inner(name,status)")
+      .eq("project.status", "Active")
       .contains("assignee_ids", [contributor.id])
       .not("status", "eq", "Done")
       .gte("due_date", now.toISOString().split("T")[0])
@@ -969,7 +972,8 @@ function registerHandlers(bot: Bot) {
     const supabase = createServiceRoleClient();
     const { data: tests, error } = await supabase
       .from("qa_tests")
-      .select("id,title,status,category,bug_report,project:projects!project_id(name),assignee:contributors!assigned_to(full_name,email)")
+      .select("id,title,status,category,bug_report,project:projects!project_id!inner(name,status),assignee:contributors!assigned_to(full_name,email)")
+      .eq("project.status", "Active")
       .order("status");
 
     if (error) {
@@ -1053,7 +1057,7 @@ function registerHandlers(bot: Bot) {
     const supabase = createServiceRoleClient();
     const { data: bugs, error } = await supabase
       .from("bugs")
-      .select("id,title,severity,status,project:projects!project_id(name),assignee:contributors!assigned_to(full_name,email)")
+      .select("id,title,severity,status,project:projects!project_id(name,status),assignee:contributors!assigned_to(full_name,email)")
       .in("status", ["Open", "In Progress"])
       .order("severity")
       .order("created_at", { ascending: false });
@@ -1063,7 +1067,10 @@ function registerHandlers(bot: Bot) {
       return ctx.reply("❌ Couldn't load bugs right now. Try again or check the dashboard.");
     }
 
-    const rows = (bugs ?? []) as unknown as BugRow[];
+    // bugs.project_id is nullable — keep unscoped bugs, drop only those tied to an Inactive project.
+    const rows = ((bugs ?? []) as unknown as BugRow[]).filter(
+      (b) => !b.project || b.project.status === "Active"
+    );
 
     if (rows.length === 0) {
       return ctx.reply("🎉 No open bugs. I'm as kibot as you are. Enjoy this rare moment.");
@@ -1195,7 +1202,7 @@ function registerHandlers(bot: Bot) {
       const supabase = createServiceRoleClient();
       const [{ data: myTasks }, { data: projectRows }, { data: teamRows }] = await Promise.all([
         supabase.from("tasks").select("title,status").contains("assignee_ids", [contributor.id]).not("status", "eq", "Done").limit(20),
-        supabase.from("projects").select("id,name").order("created_at").limit(10),
+        supabase.from("projects").select("id,name").eq("status", "Active").order("created_at").limit(10),
         supabase.from("contributors").select("id,full_name,email").is("deleted_at", null).limit(30),
       ]);
 
@@ -1213,7 +1220,7 @@ function registerHandlers(bot: Bot) {
         // Resolve project
         let projectId: string | null = null;
         if (intent.project_name) {
-          const { data: p } = await supabase.from("projects").select("id").ilike("name", `%${intent.project_name}%`).limit(1).single();
+          const { data: p } = await supabase.from("projects").select("id").eq("status", "Active").ilike("name", `%${intent.project_name}%`).limit(1).single();
           projectId = p?.id ?? null;
         }
         if (!projectId && (projectRows ?? []).length > 0) {
