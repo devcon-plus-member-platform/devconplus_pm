@@ -74,7 +74,7 @@ const NAV_ITEMS = [
   },
   {
     href: "/git",
-    label: "Git",
+    label: "GitHub Activity",
     icon: (
       <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 7.5v9m0-9A2.25 2.25 0 105.25 5.25 2.25 2.25 0 007.5 7.5zm0 9a2.25 2.25 0 102.25 2.25A2.25 2.25 0 007.5 16.5zm9-9A2.25 2.25 0 1118.75 5.25 2.25 2.25 0 0016.5 7.5zm0 0c0 3-2.25 4.5-4.5 5.25C9.75 13.5 7.5 15 7.5 16.5" />

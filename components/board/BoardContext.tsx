@@ -12,6 +12,9 @@ export interface BoardContextValue {
   collapsedGroups: Set<string>;
   canEdit: boolean;
 
+  // Project actions
+  updateProject: (id: string, name: string) => Promise<void>;
+
   // Group actions
   toggleGroupCollapse: (groupId: string) => void;
   addGroup: (name: string) => Promise<void>;
