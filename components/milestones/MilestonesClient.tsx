@@ -7,8 +7,9 @@ import MilestoneCard from "./MilestoneCard";
 import NewMilestoneModal from "./NewMilestoneModal";
 import LogProgressModal from "./LogProgressModal";
 import ProgressHistoryModal from "./ProgressHistoryModal";
-import { latestProgress } from "./milestone-utils";
-import type { Milestone, MilestoneStatus, MilestoneProgress, Contributor, Project } from "@/types";
+import { displayProgress } from "./milestone-utils";
+import { MILESTONE_SELECT, mapMilestoneRow } from "@/lib/milestones";
+import type { Milestone, MilestoneStatus, MilestoneProgress, Contributor, Project, Group } from "@/types";
 
 const STATUS_FILTERS: Array<MilestoneStatus | "All"> = ["All", "Not Started", "In Progress", "At Risk", "Achieved", "Missed"];
 type SortKey = "date" | "status" | "progress";
@@ -17,9 +18,10 @@ interface Props {
   initialMilestones: Milestone[];
   contributors: Contributor[];
   projects: Project[];
+  activeGroups: Group[];
 }
 
-export default function MilestonesClient({ initialMilestones, contributors: _contributors, projects }: Props) {
+export default function MilestonesClient({ initialMilestones, contributors: _contributors, projects, activeGroups }: Props) {
   const [milestones, setMilestones] = useState<Milestone[]>(initialMilestones);
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<MilestoneStatus | "All">("All");
@@ -44,11 +46,11 @@ export default function MilestonesClient({ initialMilestones, contributors: _con
         }
         const { data } = await supabase
           .from("milestones")
-          .select("*, progress:milestone_progress(id,milestone_id,logged_by,progress_note,progress_percent,blockers,logged_date,created_at,logger:contributors(id,full_name,email,role_id,telegram_username,deleted_at,created_at))")
+          .select(MILESTONE_SELECT)
           .eq("id", id)
           .single();
         if (!data) return;
-        const updated = data as unknown as Milestone;
+        const updated = mapMilestoneRow(data as Record<string, unknown>);
         setMilestones((prev) => {
           const exists = prev.find((m) => m.id === updated.id);
           return exists ? prev.map((m) => m.id === updated.id ? updated : m) : [...prev, updated];
@@ -60,11 +62,11 @@ export default function MilestonesClient({ initialMilestones, contributors: _con
         const milestoneId = (payload.new as MilestoneProgress).milestone_id;
         const { data } = await supabase
           .from("milestones")
-          .select("*, progress:milestone_progress(id,milestone_id,logged_by,progress_note,progress_percent,blockers,logged_date,created_at,logger:contributors(id,full_name,email,role_id,telegram_username,deleted_at,created_at))")
+          .select(MILESTONE_SELECT)
           .eq("id", milestoneId)
           .single();
         if (!data) return;
-        const updated = data as unknown as Milestone;
+        const updated = mapMilestoneRow(data as Record<string, unknown>);
         setMilestones((prev) => prev.map((m) => m.id === updated.id ? updated : m));
         setViewingHistory((v) => v?.id === updated.id ? updated : v);
       })
@@ -118,7 +120,7 @@ export default function MilestonesClient({ initialMilestones, contributors: _con
         return (order[a.status as MilestoneStatus] ?? 5) - (order[b.status as MilestoneStatus] ?? 5);
       }
       // sortBy === "progress"
-      return latestProgress(b) - latestProgress(a);
+      return displayProgress(b) - displayProgress(a);
     });
 
   const activeMilestones = filtered.filter((m) => m.status !== "Achieved" && m.status !== "Missed");
@@ -225,6 +227,8 @@ export default function MilestonesClient({ initialMilestones, contributors: _con
         <NewMilestoneModal
           projectId={projectFilter !== "all" ? projectFilter : undefined}
           contributorId={contributor?.id}
+          projects={projects}
+          activeGroups={activeGroups}
           onSaved={handleCreated}
           onClose={() => setShowNew(false)}
         />
@@ -232,6 +236,8 @@ export default function MilestonesClient({ initialMilestones, contributors: _con
       {editingMilestone && (
         <NewMilestoneModal
           milestone={editingMilestone}
+          projects={projects}
+          activeGroups={activeGroups}
           onSaved={handleEdited}
           onClose={() => setEditingMilestone(null)}
         />

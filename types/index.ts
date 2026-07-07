@@ -231,6 +231,7 @@ export interface Milestone {
   progress?: MilestoneProgress[];
   project?: Project;
   creator?: Contributor;
+  groups?: Group[];
 }
 
 export interface MilestoneProgress {

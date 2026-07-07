@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import type { Milestone, MilestoneProgress } from "@/types";
-import { progressColor } from "./milestone-utils-client";
+import { progressColor, taskStatusProgress } from "./milestone-utils-client";
 
 interface ProgressRingProps {
   percent: number;
@@ -95,6 +95,26 @@ export function latestProgressEntry(milestone: Milestone): MilestoneProgress | n
   const entries = milestone.progress ?? [];
   if (entries.length === 0) return null;
   return [...entries].sort((a, b) => b.logged_date.localeCompare(a.logged_date) || b.created_at.localeCompare(a.created_at))[0];
+}
+
+// ─── Group-linked auto progress ──────────────────────────────────────────────
+// When a milestone is linked to one or more groups, its progress is derived
+// from the status of every task in those groups instead of manual logging.
+
+export function isGroupLinked(milestone: Milestone): boolean {
+  return (milestone.groups ?? []).length > 0;
+}
+
+export function autoProgress(milestone: Milestone): number | null {
+  const tasks = (milestone.groups ?? []).flatMap((g) => g.tasks ?? []);
+  if (tasks.length === 0) return null;
+  const total = tasks.reduce((sum, t) => sum + taskStatusProgress(t.status), 0);
+  return Math.round(total / tasks.length);
+}
+
+export function displayProgress(milestone: Milestone): number {
+  const auto = autoProgress(milestone);
+  return auto !== null ? auto : latestProgress(milestone);
 }
 
 // ─── Time ago helper ──────────────────────────────────────────────────────────

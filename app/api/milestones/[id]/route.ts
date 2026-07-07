@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase";
 import { sendMilestoneAchievedEmail } from "@/lib/resend";
+import { MILESTONE_SELECT, mapMilestoneRow } from "@/lib/milestones";
 import type { Contributor, Milestone } from "@/types";
 
 interface RouteContext {
@@ -25,7 +26,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     const isAchieving = body.status === "Achieved" && existing.status !== "Achieved";
 
-    const updates: Record<string, unknown> = { ...body };
+    const { group_ids, ...updates } = body as Record<string, unknown> & { group_ids?: string[] };
     if (isAchieving) {
       updates.achieved_at = new Date().toISOString();
     }
@@ -39,6 +40,21 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     if (updateError || !updated) {
       return NextResponse.json({ ok: false, error: updateError?.message }, { status: 500 });
+    }
+
+    if (Array.isArray(group_ids)) {
+      const { error: deleteError } = await supabase.from("milestone_groups").delete().eq("milestone_id", id);
+      if (deleteError) {
+        return NextResponse.json({ ok: false, error: deleteError.message }, { status: 500 });
+      }
+      if (group_ids.length > 0) {
+        const { error: insertError } = await supabase
+          .from("milestone_groups")
+          .insert(group_ids.map((group_id) => ({ milestone_id: id, group_id })));
+        if (insertError) {
+          return NextResponse.json({ ok: false, error: insertError.message }, { status: 500 });
+        }
+      }
     }
 
     const updatedMilestone = updated as unknown as Milestone;
@@ -70,7 +86,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       updatedMilestone.announced = true;
     }
 
-    return NextResponse.json({ ok: true, milestone: updatedMilestone });
+    const { data: full, error: fetchError } = await supabase
+      .from("milestones")
+      .select(MILESTONE_SELECT)
+      .eq("id", id)
+      .single();
+
+    if (fetchError || !full) {
+      return NextResponse.json({ ok: false, error: fetchError?.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true, milestone: mapMilestoneRow(full as Record<string, unknown>) });
   } catch (err) {
     console.error("[PATCH /api/milestones/[id]]", err);
     return NextResponse.json(

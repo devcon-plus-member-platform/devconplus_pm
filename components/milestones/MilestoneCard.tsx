@@ -1,7 +1,7 @@
 "use client";
 
 import type { Milestone, Project, Contributor } from "@/types";
-import { ProgressRing, StatusBadge, CountdownText, latestProgress, latestProgressEntry, timeAgo } from "./milestone-utils";
+import { ProgressRing, StatusBadge, CountdownText, displayProgress, isGroupLinked, latestProgressEntry, timeAgo } from "./milestone-utils";
 
 interface Props {
   milestone: Milestone;
@@ -12,9 +12,10 @@ interface Props {
 }
 
 export default function MilestoneCard({ milestone: m, onLogProgress, onViewHistory, onEdit, onDelete }: Props) {
-  const pct = latestProgress(m);
+  const pct = displayProgress(m);
   const latest = latestProgressEntry(m);
   const isAchieved = m.status === "Achieved";
+  const groupLinked = isGroupLinked(m);
 
   return (
     <div className={`bg-white rounded-2xl border shadow-sm p-4 flex flex-col gap-3 transition-all ${
@@ -66,8 +67,20 @@ export default function MilestoneCard({ milestone: m, onLogProgress, onViewHisto
         )}
       </div>
 
+      {/* Linked groups */}
+      {groupLinked && (
+        <div className="flex flex-wrap items-center gap-1">
+          {(m.groups ?? []).map((g) => (
+            <span key={g.id} className="text-[11px] bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full">
+              {g.name}
+            </span>
+          ))}
+          <span className="text-[11px] text-gray-400">· auto from task status</span>
+        </div>
+      )}
+
       {/* Latest progress note */}
-      {latest && (
+      {!groupLinked && latest && (
         <div className="bg-gray-50 rounded-lg px-3 py-2 text-xs text-gray-600 line-clamp-1">
           <span className="text-gray-400 mr-1">{timeAgo(latest.created_at)}:</span>
           {latest.progress_note}
@@ -76,7 +89,7 @@ export default function MilestoneCard({ milestone: m, onLogProgress, onViewHisto
 
       {/* Actions */}
       <div className="flex items-center gap-2 mt-auto pt-1 border-t border-gray-50">
-        {!isAchieved && m.status !== "Missed" && (
+        {!groupLinked && !isAchieved && m.status !== "Missed" && (
           <button
             onClick={() => onLogProgress(m)}
             className="flex-1 px-3 py-1.5 text-xs font-medium bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors"
