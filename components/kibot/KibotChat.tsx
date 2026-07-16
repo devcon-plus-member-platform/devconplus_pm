@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { useAuthStore } from "@/lib/store";
 
 interface Message {
@@ -27,10 +28,16 @@ function TypingDots() {
 function KibotAvatar({ size = 28 }: { size?: number }) {
   return (
     <div
-      className="rounded-full bg-brand-600 flex items-center justify-center shrink-0 text-white font-bold select-none"
-      style={{ width: size, height: size, fontSize: size * 0.45 }}
+      className="rounded-full overflow-hidden shrink-0 bg-navy"
+      style={{ width: size, height: size }}
     >
-      K
+      <Image
+        src="/images/kibot-mascot.png"
+        alt="Kibot"
+        width={size}
+        height={size}
+        className="w-full h-full object-cover scale-110"
+      />
     </div>
   );
 }
@@ -236,7 +243,7 @@ export default function KibotChat() {
       {/* Floating button */}
       <button
         onClick={open ? handleClose : handleOpen}
-        className="pointer-events-auto w-14 h-14 rounded-full bg-brand-600 hover:bg-brand-700 active:scale-95 text-white shadow-lg flex items-center justify-center transition-all duration-200"
+        className="pointer-events-auto w-14 h-14 rounded-full bg-navy hover:opacity-90 active:scale-95 text-white shadow-lg flex items-center justify-center transition-all duration-200 overflow-hidden"
         aria-label={open ? "Close Kibot" : "Open Kibot"}
       >
         {open ? (
@@ -244,9 +251,13 @@ export default function KibotChat() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         ) : (
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-          </svg>
+          <Image
+            src="/images/kibot-mascot.png"
+            alt="Open Kibot"
+            width={56}
+            height={56}
+            className="w-full h-full object-cover scale-110"
+          />
         )}
       </button>
     </div>

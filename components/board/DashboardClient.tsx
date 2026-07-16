@@ -11,6 +11,7 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { createClient } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
 import type {
   Project,
   Group,
@@ -48,6 +49,63 @@ export default function DashboardClient({ initialProjects, contributors }: Props
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [showNewProject, setShowNewProject] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // ─── Overview panel resize ───────────────────────────────────────────────────
+  // Lets the user drag the boundary below DashboardOverview up to shrink it and
+  // give the board/table more vertical room. null = natural/default height.
+  const OVERVIEW_HEIGHT_KEY = "devcon-overview-height";
+  const [overviewHeight, setOverviewHeight] = useState<number | null>(null);
+  const [resizingOverview, setResizingOverview] = useState(false);
+  const overviewRef = useRef<HTMLDivElement>(null);
+  const resizeStartRef = useRef<{ y: number; height: number } | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(OVERVIEW_HEIGHT_KEY);
+    if (saved) setOverviewHeight(Number(saved));
+  }, []);
+
+  useEffect(() => {
+    if (!resizingOverview) return;
+
+    function onMove(e: MouseEvent) {
+      if (!resizeStartRef.current) return;
+      const delta = e.clientY - resizeStartRef.current.y;
+      const next = Math.max(0, Math.min(560, resizeStartRef.current.height + delta));
+      setOverviewHeight(next);
+    }
+    function onUp() {
+      setResizingOverview(false);
+      setOverviewHeight((h) => {
+        if (h !== null) localStorage.setItem(OVERVIEW_HEIGHT_KEY, String(h));
+        return h;
+      });
+    }
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.body.style.cursor = "ns-resize";
+    document.body.style.userSelect = "none";
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [resizingOverview]);
+
+  function handleOverviewResizeStart(e: React.MouseEvent) {
+    e.preventDefault();
+    resizeStartRef.current = {
+      y: e.clientY,
+      height: overviewRef.current?.getBoundingClientRect().height ?? 0,
+    };
+    setResizingOverview(true);
+  }
+
+  function resetOverviewHeight() {
+    setOverviewHeight(null);
+    localStorage.removeItem(OVERVIEW_HEIGHT_KEY);
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -662,7 +720,27 @@ export default function DashboardClient({ initialProjects, contributors }: Props
 
           {/* Main board */}
           <div className="flex-1 overflow-hidden bg-white flex flex-col">
-            <DashboardOverview tasks={allTasks} currentContributor={currentContributor} selectedProjectId={selectedProjectId ?? ""} />
+            <div
+              ref={overviewRef}
+              style={overviewHeight !== null ? { height: overviewHeight, overflowY: "auto" } : undefined}
+              className="shrink-0"
+            >
+              <DashboardOverview tasks={allTasks} currentContributor={currentContributor} selectedProjectId={selectedProjectId ?? ""} />
+            </div>
+
+            {/* Drag to resize the overview panel above */}
+            <div
+              onMouseDown={handleOverviewResizeStart}
+              onDoubleClick={resetOverviewHeight}
+              title="Drag to resize, double-click to reset"
+              className={cn(
+                "group relative h-2.5 shrink-0 cursor-ns-resize flex items-center justify-center",
+                resizingOverview ? "bg-brand-100" : "hover:bg-brand-50"
+              )}
+            >
+              <span className="w-8 h-1 rounded-full bg-gray-300 group-hover:bg-brand-400 transition-colors" />
+            </div>
+
             {selectedProject ? (
               <div className="flex-1 overflow-hidden">
                 <ProjectBoard
