@@ -3,17 +3,19 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
+import { TASK_PRIORITY_THEME } from "@/lib/theme";
 import type { Task, TaskPriority } from "@/types";
 
-const PRIORITY_OPTIONS: { value: TaskPriority; label: string; classes: string; dot: string }[] = [
-  { value: "Low",      label: "Low",      classes: "bg-gray-100 text-gray-500",   dot: "bg-gray-400"   },
-  { value: "Medium",   label: "Medium",   classes: "bg-blue-100 text-blue-700",   dot: "bg-blue-500"   },
-  { value: "High",     label: "High",     classes: "bg-orange-100 text-orange-700", dot: "bg-orange-500" },
-  { value: "Critical", label: "Critical", classes: "bg-red-100 text-red-700",     dot: "bg-red-500"    },
+const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
+  { value: "Low",      label: "Low" },
+  { value: "Medium",   label: "Medium" },
+  { value: "High",     label: "High" },
+  { value: "Critical", label: "Critical" },
 ];
 
 function getBadgeClasses(priority: TaskPriority) {
-  return PRIORITY_OPTIONS.find((o) => o.value === priority)?.classes ?? "bg-gray-100 text-gray-500";
+  const theme = TASK_PRIORITY_THEME[priority];
+  return cn(theme.bg, theme.fg);
 }
 
 interface Props {
@@ -84,8 +86,11 @@ export default function PriorityCell({ task, onUpdate }: Props) {
                 }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 text-sm"
               >
-                <span className={cn("w-2 h-2 rounded-full shrink-0", opt.dot)} />
-                <span className={cn("inline-flex px-2 py-0.5 rounded-full text-xs font-medium", opt.classes)}>
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: TASK_PRIORITY_THEME[opt.value].dot }}
+                />
+                <span className={cn("inline-flex px-2 py-0.5 rounded-full text-xs font-medium", getBadgeClasses(opt.value))}>
                   {opt.label}
                 </span>
                 {opt.value === priority && (

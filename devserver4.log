@@ -1,0 +1,24 @@
+
+> devconplus-pm@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 3.4s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 537ms (126 modules)
+ ○ Compiling /admin/accept-invite ...
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (101kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (231kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ✓ Compiled /admin/accept-invite in 4.3s (611 modules)
+ GET /admin/accept-invite 200 in 632ms
+ ✓ Compiled in 322ms (311 modules)
+ GET /admin/accept-invite 200 in 57ms
+ ○ Compiling /api/admin/accept-invite ...
+ ✓ Compiled /api/admin/accept-invite in 587ms (381 modules)
+ GET /api/admin/accept-invite 400 in 729ms
+ ✓ Compiled /api/admin/invite in 242ms (436 modules)
+ POST /api/admin/invite 401 in 308ms

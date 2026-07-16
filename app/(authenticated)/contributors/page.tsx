@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import ContributorsClient from "@/components/contributors/ContributorsClient";
-import type { Contributor, Role } from "@/types";
+import type { Contributor, Role, Task, GitHubEvent } from "@/types";
 
 export default async function ContributorsPage() {
   const supabase = await createServerSupabaseClient();
@@ -28,7 +28,7 @@ export default async function ContributorsPage() {
     redirect("/dashboard");
   }
 
-  const [{ data: contributors }, { data: deletedContributors }, { data: roles }] = await Promise.all([
+  const [{ data: contributors }, { data: deletedContributors }, { data: roles }, { data: tasks }, { data: githubEvents }] = await Promise.all([
     supabase
       .from("contributors")
       .select("*, role:roles(id,name,description,color,created_at)")
@@ -43,6 +43,14 @@ export default async function ContributorsPage() {
       .from("roles")
       .select("*")
       .order("name", { ascending: true }),
+    supabase
+      .from("tasks")
+      .select("id,assignee_id,assignee_ids,status"),
+    supabase
+      .from("github_events")
+      .select("event_type,author_login,created_at")
+      .order("created_at", { ascending: false })
+      .limit(500),
   ]);
 
   return (
@@ -50,6 +58,8 @@ export default async function ContributorsPage() {
       initialContributors={(contributors as Contributor[]) ?? []}
       initialDeletedContributors={(deletedContributors as Contributor[]) ?? []}
       initialRoles={(roles as Role[]) ?? []}
+      tasks={(tasks as Pick<Task, "id" | "assignee_id" | "assignee_ids" | "status">[]) ?? []}
+      githubEvents={(githubEvents as Pick<GitHubEvent, "event_type" | "author_login" | "created_at">[]) ?? []}
     />
   );
 }

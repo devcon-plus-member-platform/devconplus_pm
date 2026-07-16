@@ -3,20 +3,22 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
+import { TASK_STATUS_THEME } from "@/lib/theme";
 import type { Task, TaskStatus } from "@/types";
 
-const STATUS_OPTIONS: { value: TaskStatus; label: string; classes: string }[] = [
-  { value: "Not Started",      label: "Not Started",      classes: "bg-gray-100 text-gray-600" },
-  { value: "In Progress",      label: "In Progress",      classes: "bg-blue-100 text-blue-700" },
-  { value: "Review",           label: "Review",           classes: "bg-orange-100 text-orange-700" },
-  { value: "Done",             label: "Done",             classes: "bg-green-100 text-green-700" },
-  { value: "Help",             label: "Help",             classes: "bg-yellow-100 text-yellow-700" },
-  { value: "I am Stuck",       label: "I am Stuck",       classes: "bg-red-100 text-red-700" },
-  { value: "For Improvements", label: "For Improvements", classes: "bg-purple-100 text-purple-700" },
+const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
+  { value: "Not Started",      label: "Not Started" },
+  { value: "In Progress",      label: "In Progress" },
+  { value: "Review",           label: "Review" },
+  { value: "Done",             label: "Done" },
+  { value: "Help",             label: "Help" },
+  { value: "I am Stuck",       label: "I am Stuck" },
+  { value: "For Improvements", label: "For Improvements" },
 ];
 
 function getBadgeClasses(status: TaskStatus): string {
-  return STATUS_OPTIONS.find((o) => o.value === status)?.classes ?? "bg-gray-100 text-gray-600";
+  const theme = TASK_STATUS_THEME[status];
+  return cn(theme.bg, theme.fg);
 }
 
 interface Props {
@@ -89,7 +91,7 @@ export default function StatusCell({ task, onUpdate }: Props) {
                 <span
                   className={cn(
                     "inline-flex px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap",
-                    opt.classes
+                    getBadgeClasses(opt.value)
                   )}
                 >
                   {opt.label}

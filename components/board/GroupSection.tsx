@@ -11,7 +11,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { useBoardContext } from "./BoardContext";
 import TaskRow from "./TaskRow";
 import ConfirmModal from "./modals/ConfirmModal";
-import type { Group } from "@/types";
+import { GROUP_COLOR_PALETTE as COLOR_PALETTE, defaultGroupAccent, groupColorStorageKey as storageKey } from "@/lib/group-color";
+import type { Group, Task } from "@/types";
 
 const COL_HEADERS = [
   { label: "Task",       className: "min-w-[280px] w-[280px]" },
@@ -23,39 +24,18 @@ const COL_HEADERS = [
   { label: "Attachment", className: "min-w-[96px]  w-[96px]"  },
   { label: "PR Link",             className: "min-w-[160px]"           },
   { label: "Definition of Done", className: "min-w-[180px]"           },
+  { label: "Progress",            className: "min-w-[120px] w-[120px]" },
   { label: "Comments",            className: "min-w-[100px]"           },
 ];
-
-const COLOR_PALETTE = [
-  { label: "Blue",    value: "#3b82f6" },
-  { label: "Violet",  value: "#8b5cf6" },
-  { label: "Indigo",  value: "#6366f1" },
-  { label: "Teal",    value: "#14b8a6" },
-  { label: "Emerald", value: "#10b981" },
-  { label: "Lime",    value: "#84cc16" },
-  { label: "Amber",   value: "#f59e0b" },
-  { label: "Orange",  value: "#f97316" },
-  { label: "Red",     value: "#ef4444" },
-  { label: "Rose",    value: "#f43f5e" },
-  { label: "Pink",    value: "#ec4899" },
-  { label: "Cyan",    value: "#06b6d4" },
-];
-
-const DEFAULT_ACCENTS = COLOR_PALETTE.map((c) => c.value);
-
-function storageKey(groupId: string) {
-  return `devcon-group-color-${groupId}`;
-}
 
 interface Props {
   group: Group;
   colorIdx: number;
+  taskFilter?: (task: Task) => boolean;
 }
 
-export default function GroupSection({ group, colorIdx }: Props) {
-  const defaultAccent = DEFAULT_ACCENTS[colorIdx % DEFAULT_ACCENTS.length];
-
-  const [accent, setAccent] = useState(defaultAccent);
+export default function GroupSection({ group, colorIdx, taskFilter }: Props) {
+  const [accent, setAccent] = useState(defaultGroupAccent(colorIdx));
   const [pickerOpen, setPickerOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
@@ -103,7 +83,7 @@ export default function GroupSection({ group, colorIdx }: Props) {
     return () => document.removeEventListener("keydown", handler);
   }, [expanded]);
 
-  const tasks = tasksByGroup[group.id] ?? [];
+  const tasks = (tasksByGroup[group.id] ?? []).filter((t) => taskFilter?.(t) ?? true);
   const collapsed = collapsedGroups.has(group.id);
 
   const {
@@ -141,15 +121,15 @@ export default function GroupSection({ group, colorIdx }: Props) {
         className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 group/header"
         style={{ backgroundColor: `${accent}0d` }}
       >
-        {/* Drag handle */}
+        {/* Drag handle — always visible so reordering is discoverable */}
         {canEdit && (
           <button
-            className="text-gray-300 hover:text-gray-500 cursor-grab opacity-0 group-hover/header:opacity-100 transition-all duration-150 shrink-0 p-0.5 rounded hover:bg-black/5"
-            title="Drag group"
+            className="text-gray-400 hover:text-gray-700 cursor-grab active:cursor-grabbing transition-colors duration-150 shrink-0 p-1 -ml-1 rounded hover:bg-black/5"
+            title="Drag to reorder group"
             {...attributes}
             {...listeners}
           >
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
               <path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zM7 8a1 1 0 11-2 0 1 1 0 012 0zM7 12a1 1 0 11-2 0 1 1 0 012 0zM13 4a1 1 0 11-2 0 1 1 0 012 0zM13 8a1 1 0 11-2 0 1 1 0 012 0zM13 12a1 1 0 11-2 0 1 1 0 012 0z" />
             </svg>
           </button>

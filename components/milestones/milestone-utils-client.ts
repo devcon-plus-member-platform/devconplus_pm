@@ -20,10 +20,10 @@ export function taskStatusProgress(status: TaskStatus): number {
 }
 
 export function progressColor(pct: number): string {
-  if (pct >= 100) return "#22c55e";
-  if (pct >= 67) return "#3b82f6";
-  if (pct >= 34) return "#f59e0b";
-  return "#ef4444";
+  if (pct >= 100) return "#10b981"; // emerald
+  if (pct >= 67) return "#3b5ee8"; // brand indigo
+  if (pct >= 34) return "#f59e0b"; // amber
+  return "#ef4444"; // rose
 }
 
 export function progressLabel(pct: number): string {

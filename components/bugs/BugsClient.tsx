@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import BugCard from "./BugCard";
 import BugDetailPanel from "./BugDetailPanel";
 import NewBugModal from "./NewBugModal";
 import Toast from "@/components/ui/Toast";
+import StatCard from "@/components/ui/StatCard";
+import ProgressBar from "@/components/ui/ProgressBar";
+import { BUG_STATUS_THEME, BUG_SEVERITY_THEME } from "@/lib/theme";
 import type { Bug, BugStatus, BugSeverity, Contributor, Project } from "@/types";
 
 const ALL = "All";
@@ -99,6 +102,18 @@ export default function BugsClient({ initialBugs, projects, contributors }: Prop
 
   const viewing = bugs.find((b) => b.id === viewingId);
 
+  const stats = useMemo(() => {
+    const open = projectBugs.filter((b) => b.status === "Open").length;
+    const inProgress = projectBugs.filter((b) => b.status === "In Progress").length;
+    const resolved = projectBugs.filter((b) => b.status === "Resolved").length;
+    const critical = projectBugs.filter(
+      (b) => b.severity === "Critical" && b.status !== "Resolved" && b.status !== "Closed"
+    ).length;
+    const total = projectBugs.length;
+    const resolutionRate = total === 0 ? 0 : Math.round((resolved / total) * 100);
+    return { open, inProgress, resolved, critical, resolutionRate };
+  }, [projectBugs]);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Header */}
@@ -124,6 +139,23 @@ export default function BugsClient({ initialBugs, projects, contributors }: Prop
           + Report a Bug
         </button>
       </div>
+
+      {/* Stat strip */}
+      {projectBugs.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 px-6 py-4 bg-surface border-b border-surface-border shrink-0">
+          <StatCard label="Open" value={stats.open} accent={BUG_STATUS_THEME.Open.dot} />
+          <StatCard label="In Progress" value={stats.inProgress} accent={BUG_STATUS_THEME["In Progress"].dot} />
+          <StatCard label="Resolved" value={stats.resolved} accent={BUG_STATUS_THEME.Resolved.dot} />
+          <StatCard label="Critical" value={stats.critical} accent={BUG_SEVERITY_THEME.Critical.dot} />
+          <div className="bg-white border border-surface-border rounded-xl px-5 py-4 shadow-sm col-span-2 sm:col-span-1 flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-xs text-gray-400">Resolution Rate</p>
+              <p className="text-xs font-semibold text-gray-700">{stats.resolutionRate}%</p>
+            </div>
+            <ProgressBar value={stats.resolutionRate} color={BUG_STATUS_THEME.Resolved.dot} />
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex items-center gap-2 px-6 py-3 border-b border-gray-100 flex-wrap shrink-0">
@@ -173,7 +205,7 @@ export default function BugsClient({ initialBugs, projects, contributors }: Prop
             )}
           </div>
         ) : (
-          <div className="max-w-2xl mx-auto space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-5xl mx-auto">
             {visible.map((bug) => (
               <BugCard key={bug.id} bug={bug} onClick={() => setViewingId(bug.id)} />
             ))}

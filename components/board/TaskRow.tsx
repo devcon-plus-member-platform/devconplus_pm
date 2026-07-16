@@ -15,17 +15,10 @@ import PRLinkCell from "./cells/PRLinkCell";
 import DefinitionOfDoneCell from "./cells/DefinitionOfDoneCell";
 import CommentsCell from "./cells/CommentsCell";
 import ConfirmModal from "./modals/ConfirmModal";
-import type { Task, TaskStatus } from "@/types";
-
-const STATUS_STRIPE: Record<TaskStatus, string> = {
-  "Not Started":      "#9ca3af",
-  "In Progress":      "#3b82f6",
-  "Review":           "#f97316",
-  "Done":             "#22c55e",
-  "Help":             "#f59e0b",
-  "I am Stuck":       "#ef4444",
-  "For Improvements": "#a855f7",
-};
+import ProgressBar from "@/components/ui/ProgressBar";
+import { TASK_STATUS_THEME, TASK_PRIORITY_THEME } from "@/lib/theme";
+import { taskStatusProgress } from "@/components/milestones/milestone-utils-client";
+import type { Task } from "@/types";
 
 interface Props {
   task: Task;
@@ -66,7 +59,7 @@ export default function TaskRow({ task, groupId }: Props) {
         {/* Controls column — left status stripe */}
         <td
           className="w-8 px-1 border-l-[3px]"
-          style={{ borderLeftColor: STATUS_STRIPE[task.status] ?? "#9ca3af" }}
+          style={{ borderLeftColor: TASK_STATUS_THEME[task.status].dot }}
         >
           {canEdit && (
             <div className="flex flex-col items-center gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity duration-150">
@@ -107,6 +100,12 @@ export default function TaskRow({ task, groupId }: Props) {
         <AttachmentCell task={task} groupId={groupId} />
         <PRLinkCell task={task} onUpdate={patch} />
         <DefinitionOfDoneCell task={task} onUpdate={patch} />
+        <td className="px-3 py-2 w-[120px]">
+          <ProgressBar
+            value={taskStatusProgress(task.status)}
+            color={TASK_PRIORITY_THEME[task.priority ?? "Medium"].dot}
+          />
+        </td>
         <CommentsCell task={task} />
       </tr>
 

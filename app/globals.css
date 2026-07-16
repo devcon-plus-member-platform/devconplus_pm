@@ -7,7 +7,7 @@
     @apply font-sans;
   }
   body {
-    @apply antialiased bg-gray-50 text-gray-900;
+    @apply antialiased bg-surface text-gray-900;
   }
 }
 

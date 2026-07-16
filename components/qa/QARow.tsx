@@ -1,27 +1,14 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { cn } from "@/lib/utils";
+import { QA_STATUS_THEME } from "@/lib/theme";
+import StatusPill from "@/components/ui/StatusPill";
+import Tag from "@/components/ui/Tag";
 import type { Contributor, QATest, QAStatus } from "@/types";
 
 const STATUS_CYCLE: QAStatus[] = ["Not Run", "Pass", "Fail", "Blocked"];
-const STATUS_STYLES: Record<QAStatus, string> = {
-  "Not Run":  "bg-gray-100 text-gray-600",
-  Pass:       "bg-green-100 text-green-700",
-  Fail:       "bg-red-100 text-red-700",
-  Blocked:    "bg-orange-100 text-orange-700",
-};
 
-const CATEGORY_PALETTE = [
-  "bg-blue-100 text-blue-700",
-  "bg-purple-100 text-purple-700",
-  "bg-yellow-100 text-yellow-700",
-  "bg-red-100 text-red-700",
-  "bg-green-100 text-green-700",
-  "bg-pink-100 text-pink-700",
-  "bg-indigo-100 text-indigo-700",
-  "bg-teal-100 text-teal-700",
-];
+const CATEGORY_PALETTE = ["#3b5ee8", "#8b5cf6", "#f59e0b", "#ef4444", "#10b981", "#ec4899", "#06b6d4", "#f97316"];
 
 function categoryColor(cat: string): string {
   let hash = 0;
@@ -79,7 +66,10 @@ export default function QARow({ test, contributors, onUpdate, onDelete, onEscala
 
   return (
     <React.Fragment>
-      <tr className="border-b border-gray-100 hover:bg-gray-50/40 group/row">
+      <tr
+        className="border-b border-gray-100 hover:bg-gray-50/40 group/row border-l-[3px]"
+        style={{ borderLeftColor: QA_STATUS_THEME[test.status].dot }}
+      >
         {/* Delete */}
         <td className="py-2.5 pr-2 w-8">
           <button
@@ -137,9 +127,7 @@ export default function QARow({ test, contributors, onUpdate, onDelete, onEscala
           ) : (
             <button onClick={() => setEditCat(true)}>
               {test.category ? (
-                <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", categoryColor(test.category))}>
-                  {test.category}
-                </span>
+                <Tag label={test.category} color={categoryColor(test.category)} />
               ) : (
                 <span className="text-xs text-gray-300 italic">Add category</span>
               )}
@@ -197,15 +185,8 @@ export default function QARow({ test, contributors, onUpdate, onDelete, onEscala
 
         {/* Status — click to cycle */}
         <td className="py-2.5 pr-4">
-          <button
-            onClick={cycleStatus}
-            className={cn(
-              "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity",
-              STATUS_STYLES[test.status]
-            )}
-            title="Click to cycle status"
-          >
-            {test.status}
+          <button onClick={cycleStatus} className="hover:opacity-80 transition-opacity" title="Click to cycle status">
+            <StatusPill label={test.status} color={QA_STATUS_THEME[test.status]} />
           </button>
         </td>
 
@@ -216,14 +197,14 @@ export default function QARow({ test, contributors, onUpdate, onDelete, onEscala
               {test.bug_id ? (
                 <a
                   href={`/bugs#${test.bug_id}`}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-700 border border-red-100 rounded-full text-xs font-medium hover:bg-red-100 transition-colors"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-rose-50 text-accent-rose border border-rose-100 rounded-full text-xs font-medium hover:bg-rose-100 transition-colors"
                 >
-                  🐛 Bug filed
+                  🐛 Bug filed #{test.bug_id.slice(0, 6)}
                 </a>
               ) : (
                 <button
                   onClick={onEscalate}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-600 text-white rounded-full text-xs font-medium hover:bg-red-700 transition-colors"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-accent-rose text-white rounded-full text-xs font-medium hover:opacity-90 transition-opacity"
                 >
                   Escalate to Bug
                 </button>

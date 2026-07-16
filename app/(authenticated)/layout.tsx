@@ -11,7 +11,7 @@ export default function AuthenticatedLayout({
     <AuthProvider>
       <div className="flex min-h-screen">
         <Sidebar />
-        <main className="flex-1 overflow-auto md:pt-0">{children}</main>
+        <main className="flex-1 overflow-auto md:pt-0 bg-surface">{children}</main>
       </div>
       <KibotChat />
     </AuthProvider>

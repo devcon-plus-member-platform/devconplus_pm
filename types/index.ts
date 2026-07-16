@@ -14,10 +14,21 @@ export interface Contributor {
   full_name: string | null;
   role_id: string | null;
   telegram_username: string | null;
+  is_admin: boolean;
   deleted_at: string | null;
   created_at: string;
   // joined from roles
   role?: Role;
+}
+
+export interface AdminInvite {
+  id: string;
+  email: string;
+  token: string;
+  invited_by: string | null;
+  accepted_at: string | null;
+  expires_at: string;
+  created_at: string;
 }
 
 export type ProjectStatus = "Active" | "Inactive";

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendActivityAlertEmail } from "@/lib/resend";
-import { ADMIN_EMAIL, isAdmin } from "@/lib/permissions";
+import { createServiceRoleClient } from "@/lib/supabase";
 
 export interface ActivityPayload {
   action: string;       // "created" | "updated" | "deleted" | "moved" | "renamed"
@@ -14,18 +14,31 @@ export interface ActivityPayload {
 export async function POST(request: NextRequest) {
   try {
     const body: ActivityPayload = await request.json();
+    const supabase = createServiceRoleClient();
 
-    // Only email admin for non-admin actors
-    if (!isAdmin(body.actorEmail)) {
-      await sendActivityAlertEmail({
-        to: ADMIN_EMAIL,
-        actor: body.actorName || "Guest",
-        action: body.action,
-        entity: body.entity,
-        entityTitle: body.entityTitle,
-        page: body.page,
-      });
-      console.log(`[activity] email sent → ${ADMIN_EMAIL} | ${body.actorName} ${body.action} ${body.entity}: "${body.entityTitle}"`);
+    const { data: actor } = body.actorEmail
+      ? await supabase.from("contributors").select("is_admin").eq("email", body.actorEmail).maybeSingle()
+      : { data: null };
+
+    // Only email admins for non-admin actors
+    if (!actor?.is_admin) {
+      const { data: admins } = await supabase
+        .from("contributors")
+        .select("email")
+        .eq("is_admin", true)
+        .is("deleted_at", null);
+
+      for (const admin of admins ?? []) {
+        await sendActivityAlertEmail({
+          to: admin.email,
+          actor: body.actorName || "Guest",
+          action: body.action,
+          entity: body.entity,
+          entityTitle: body.entityTitle,
+          page: body.page,
+        });
+        console.log(`[activity] email sent → ${admin.email} | ${body.actorName} ${body.action} ${body.entity}: "${body.entityTitle}"`);
+      }
     }
 
     return NextResponse.json({ ok: true });

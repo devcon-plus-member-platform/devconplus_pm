@@ -1,5 +1,8 @@
-export const ADMIN_EMAIL = "rizzperocho@gmail.com";
+import type { Contributor } from "@/types";
 
-export function isAdmin(email: string | null | undefined): boolean {
-  return email === ADMIN_EMAIL;
+// Admin is a per-contributor flag (contributors.is_admin) rather than a
+// single hardcoded account — there can be more than one admin, granted via
+// the invite flow in /admin/accept-invite.
+export function isAdmin(contributor: Pick<Contributor, "is_admin"> | null | undefined): boolean {
+  return !!contributor?.is_admin;
 }

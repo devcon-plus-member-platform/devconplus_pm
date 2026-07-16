@@ -69,7 +69,7 @@ export default function NotificationCenter() {
 
   // ── Admin: subscribe to ALL task changes across all projects ──────────────
   useEffect(() => {
-    if (!isAdmin(contributor?.email)) return;
+    if (!isAdmin(contributor)) return;
     const supabase = supabaseRef.current;
     const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -131,7 +131,7 @@ export default function NotificationCenter() {
 
   // ── Non-admin contributor: subscribe to self-assignment changes ───────────
   useEffect(() => {
-    if (isAdmin(contributor?.email) || !contributor?.id) return;
+    if (isAdmin(contributor) || !contributor?.id) return;
     const supabase = supabaseRef.current;
 
     const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -194,7 +194,7 @@ export default function NotificationCenter() {
         <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-              {isAdmin(contributor?.email) ? "Activity Feed" : "Notifications"}
+              {isAdmin(contributor) ? "Activity Feed" : "Notifications"}
             </p>
             {notifs.length > 0 && (
               <button

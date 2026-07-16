@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { Milestone, MilestoneProgress } from "@/types";
+import type { Milestone, MilestoneProgress, MilestoneStatus } from "@/types";
 import { progressColor, taskStatusProgress } from "./milestone-utils-client";
+import { MILESTONE_STATUS_THEME } from "@/lib/theme";
 
 interface ProgressRingProps {
   percent: number;
@@ -40,17 +41,10 @@ export function ProgressRing({ percent, size = 48, strokeWidth = 4, achieved = f
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
-const STATUS_STYLES: Record<string, string> = {
-  "Not Started": "bg-gray-100 text-gray-600",
-  "In Progress": "bg-blue-100 text-blue-700",
-  "At Risk":     "bg-orange-100 text-orange-700",
-  "Achieved":    "bg-green-100 text-green-700",
-  "Missed":      "bg-red-100 text-red-600",
-};
-
-export function StatusBadge({ status }: { status: string }) {
+export function StatusBadge({ status }: { status: MilestoneStatus }) {
+  const theme = MILESTONE_STATUS_THEME[status];
   return (
-    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_STYLES[status] ?? STATUS_STYLES["Not Started"]}`}>
+    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${theme.bg} ${theme.fg}`}>
       {status === "Achieved" && <span>✓</span>}
       {status}
     </span>
@@ -58,26 +52,41 @@ export function StatusBadge({ status }: { status: string }) {
 }
 
 // ─── Countdown text ───────────────────────────────────────────────────────────
+// Colored primarily by the milestone's status; falls back to day-based
+// urgency for statuses that don't carry their own color (Not Started / In Progress).
 
-export function CountdownText({ targetDate }: { targetDate: string }) {
+export function CountdownText({ targetDate, status }: { targetDate: string; status: MilestoneStatus }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const target = new Date(targetDate + "T00:00:00");
   const diffMs = target.getTime() - today.getTime();
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
+  if (status === "Missed") {
+    return (
+      <span className="text-accent-rose text-xs font-medium">
+        Missed by {Math.abs(diffDays)} day{Math.abs(diffDays) !== 1 ? "s" : ""}
+      </span>
+    );
+  }
+  if (status === "Achieved") {
+    return <span className="text-emerald-600 text-xs font-medium">Achieved</span>;
+  }
+  if (status === "At Risk") {
+    return <span className="text-accent-amber text-xs font-medium">At risk · due in {Math.max(diffDays, 0)} day{diffDays !== 1 ? "s" : ""}</span>;
+  }
   if (diffDays === 0) {
-    return <span className="text-red-600 font-bold text-xs">Due today</span>;
+    return <span className="text-accent-rose font-bold text-xs">Due today</span>;
   }
   if (diffDays < 0) {
     return (
-      <span className="text-red-500 text-xs">
+      <span className="text-accent-rose text-xs">
         Overdue by {Math.abs(diffDays)} day{Math.abs(diffDays) !== 1 ? "s" : ""}
       </span>
     );
   }
   if (diffDays <= 3) {
-    return <span className="text-orange-500 text-xs">Due in {diffDays} day{diffDays !== 1 ? "s" : ""}</span>;
+    return <span className="text-accent-amber text-xs">Due in {diffDays} day{diffDays !== 1 ? "s" : ""}</span>;
   }
   return <span className="text-gray-400 text-xs">Due in {diffDays} days</span>;
 }

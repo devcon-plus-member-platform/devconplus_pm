@@ -1,22 +1,9 @@
 "use client";
 
 import { formatDate } from "@/lib/utils";
-import type { Bug, BugSeverity, BugStatus } from "@/types";
-
-const SEVERITY_STYLES: Record<BugSeverity, string> = {
-  Critical: "bg-red-100 text-red-700",
-  High:     "bg-orange-100 text-orange-700",
-  Medium:   "bg-yellow-100 text-yellow-700",
-  Low:      "bg-gray-100 text-gray-600",
-};
-
-const STATUS_STYLES: Record<BugStatus, string> = {
-  "Open":               "bg-blue-100 text-blue-700",
-  "In Progress":        "bg-purple-100 text-purple-700",
-  "Resolved":           "bg-green-100 text-green-700",
-  "Closed":             "bg-gray-100 text-gray-500",
-  "Cannot Reproduce":   "bg-slate-100 text-slate-600",
-};
+import { BUG_SEVERITY_THEME, BUG_STATUS_THEME } from "@/lib/theme";
+import StatusPill from "@/components/ui/StatusPill";
+import type { Bug } from "@/types";
 
 function timeAgo(dateStr: string): string {
   const secs = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -38,19 +25,16 @@ export default function BugCard({ bug, onClick }: Props) {
 
   return (
     <div
-      className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow cursor-pointer group/card"
+      className="bg-white border border-surface-border rounded-xl p-4 hover:shadow-sm transition-shadow cursor-pointer group/card border-l-[3px]"
+      style={{ borderLeftColor: BUG_SEVERITY_THEME[bug.severity].dot }}
       onClick={onClick}
     >
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
           {/* Badges row */}
           <div className="flex items-center gap-2 flex-wrap mb-2">
-            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${SEVERITY_STYLES[bug.severity]}`}>
-              {bug.severity}
-            </span>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[bug.status]}`}>
-              {bug.status}
-            </span>
+            <StatusPill label={bug.severity} color={BUG_SEVERITY_THEME[bug.severity]} dot={false} />
+            <StatusPill label={bug.status} color={BUG_STATUS_THEME[bug.status]} dot={false} />
             {bug.qa_test_id && (
               <span className="px-2 py-0.5 rounded-full text-xs bg-indigo-50 text-indigo-600 border border-indigo-100">
                 From QA{bug.qa_test?.title ? `: ${bug.qa_test.title.slice(0, 30)}` : ""}

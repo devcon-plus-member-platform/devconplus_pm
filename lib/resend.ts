@@ -368,6 +368,31 @@ export async function sendWelcomeEmail(opts: WelcomeEmailOptions): Promise<void>
   });
 }
 
+// ─── Admin invite ──────────────────────────────────────────────────────────────
+export interface AdminInviteEmailOptions {
+  to: string;
+  inviterName: string;
+  acceptUrl: string;
+}
+
+export async function sendAdminInviteEmail(opts: AdminInviteEmailOptions): Promise<void> {
+  const resend = getResendClient();
+
+  await resend.emails.send({
+    from: process.env.RESEND_FROM_DOMAIN ? `DEVCON+ PM <noreply@${process.env.RESEND_FROM_DOMAIN}>` : "DEVCON+ PM <onboarding@resend.dev>",
+    to: opts.to,
+    subject: "You've been invited as a DEVCON+ PM admin",
+    html: emailWrapper(`
+      <p style="color:#374151;">Hi there,</p>
+      <p style="color:#374151;"><strong>${opts.inviterName}</strong> has invited you to become an admin on the <strong>DEVCON+ PM</strong> dashboard.</p>
+      <p style="color:#374151;">Admins can see every contributor's tasks, manage the team, and receive activity alerts for the whole board.</p>
+      <p style="color:#374151;">Click below to create your account with a name and password:</p>
+      ${ctaButton(opts.acceptUrl, "Create your admin account")}
+      <p style="color:#9ca3af;font-size:12px;margin-top:20px;">This invite link expires in 7 days. If you weren't expecting this, you can safely ignore this email.</p>
+    `),
+  });
+}
+
 // ─── Milestone achieved ────────────────────────────────────────────────────────
 export interface MilestoneAchievedEmailOptions {
   to: string;

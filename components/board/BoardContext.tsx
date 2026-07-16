@@ -11,6 +11,8 @@ export interface BoardContextValue {
   selectedProjectId: string;
   collapsedGroups: Set<string>;
   canEdit: boolean;
+  /** Comment count per task id, loaded alongside the board. */
+  commentCounts: Record<string, number>;
 
   // Project actions
   updateProject: (id: string, name: string) => Promise<void>;
@@ -24,7 +26,7 @@ export interface BoardContextValue {
   reorderGroups: (activeId: string, overId: string) => Promise<void>;
 
   // Task actions
-  addTask: (groupId: string) => Promise<void>;
+  addTask: (groupId: string, initialFields?: Partial<Pick<Task, "status" | "title">>) => Promise<void>;
   updateTask: (
     id: string,
     groupId: string,

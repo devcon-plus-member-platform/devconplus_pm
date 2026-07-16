@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
@@ -109,6 +109,23 @@ export default function Sidebar() {
   const setContributor = useAuthStore((s) => s.setContributor);
   const setGuestEmail = useAuthStore((s) => s.setGuestEmail);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [openBugCount, setOpenBugCount] = useState(0);
+  const supabaseRef = useRef(createClient());
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchOpenBugCount() {
+      const { count } = await supabaseRef.current
+        .from("bugs")
+        .select("id", { count: "exact", head: true })
+        .in("status", ["Open", "In Progress"]);
+      if (!cancelled) setOpenBugCount(count ?? 0);
+    }
+    fetchOpenBugCount();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -123,7 +140,7 @@ export default function Sidebar() {
   );
 
   const navLinks = (
-    <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
+    <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
       {visibleNavItems.map((item) => {
         const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
         return (
@@ -132,21 +149,23 @@ export default function Sidebar() {
             href={item.href}
             onClick={() => setMobileOpen(false)}
             className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 group/nav",
+              "relative flex items-center gap-3 pl-3.5 pr-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 group/nav",
               active
-                ? "bg-white/[0.12] text-white"
+                ? "bg-white text-navy shadow-sm"
                 : "text-brand-300 hover:bg-white/[0.07] hover:text-white"
             )}
           >
             <span className={cn(
               "shrink-0 transition-colors",
-              active ? "text-white" : "text-brand-400 group-hover/nav:text-white"
+              active ? "text-navy" : "text-brand-400 group-hover/nav:text-white"
             )}>
               {item.icon}
             </span>
-            <span className="truncate">{item.label}</span>
-            {active && (
-              <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white/70 shrink-0" />
+            <span className="truncate flex-1">{item.label}</span>
+            {item.href === "/bugs" && openBugCount > 0 && (
+              <span className="ml-auto shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-accent-rose text-white text-[10px] font-bold flex items-center justify-center">
+                {openBugCount}
+              </span>
             )}
           </Link>
         );
@@ -234,16 +253,21 @@ export default function Sidebar() {
   return (
     <>
       {/* ── Desktop sidebar ── */}
-      <aside className="hidden md:flex w-60 min-h-screen bg-brand-950 flex-col text-white shrink-0 border-r border-white/[0.05]">
-        {/* Logo area */}
+      <aside className="hidden md:flex w-[236px] sticky top-0 h-screen bg-navy-gradient flex-col text-white shrink-0 border-r border-white/[0.05]">
+        {/* Logo lockup */}
         <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between shrink-0">
-          <div>
-            <h1 className="text-base font-bold tracking-tight text-white leading-tight">
-              DEVCON+
-            </h1>
-            <p className="text-[11px] text-brand-400 mt-0.5 font-medium tracking-wide uppercase">
-              Project Management
-            </p>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand to-brand-light flex items-center justify-center shrink-0 text-white font-extrabold text-base">
+              D
+            </div>
+            <div className="flex flex-col leading-none min-w-0">
+              <h1 className="text-base font-extrabold tracking-tight text-white leading-tight truncate">
+                DEVCON+
+              </h1>
+              <p className="text-[10px] text-brand-300 mt-1 font-semibold tracking-widest uppercase truncate">
+                Project Mgmt
+              </p>
+            </div>
           </div>
           {!!contributor && <NotificationCenter />}
         </div>
@@ -253,7 +277,7 @@ export default function Sidebar() {
       </aside>
 
       {/* ── Mobile top bar ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-brand-950 text-white flex items-center justify-between px-4 py-3 border-b border-white/[0.08]">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-navy-gradient text-white flex items-center justify-between px-4 py-3 border-b border-white/[0.08]">
         <span className="text-sm font-bold tracking-tight">DEVCON+</span>
         <div className="flex items-center gap-2">
           {!!contributor && <NotificationCenter />}
@@ -279,7 +303,7 @@ export default function Sidebar() {
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-30 bg-black/30 backdrop-blur-sm" onClick={() => setMobileOpen(false)}>
           <div
-            className="absolute top-[53px] left-0 w-64 bottom-0 bg-brand-950 text-white flex flex-col shadow-2xl border-r border-white/[0.08]"
+            className="absolute top-[53px] left-0 w-64 bottom-0 bg-navy-gradient text-white flex flex-col shadow-2xl border-r border-white/[0.08]"
             onClick={(e) => e.stopPropagation()}
           >
             {navLinks}

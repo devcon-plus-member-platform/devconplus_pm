@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createClient } from "@/lib/supabase";
 import QARow from "./QARow";
 import NewBugModal from "@/components/bugs/NewBugModal";
+import StatCard from "@/components/ui/StatCard";
+import ProgressBar from "@/components/ui/ProgressBar";
+import { QA_STATUS_THEME } from "@/lib/theme";
 import type { Project, Contributor, QATest, QAStatus, Bug } from "@/types";
 
 const ALL = "All";
@@ -50,6 +53,16 @@ export default function QAClient({ initialProjects, contributors }: Props) {
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL);
   const [statusFilter, setStatusFilter] = useState<QAStatus | typeof ALL>(ALL);
   const [escalatingFrom, setEscalatingFrom] = useState<QATest | null>(null);
+
+  const stats = useMemo(() => {
+    const pass = tests.filter((t) => t.status === "Pass").length;
+    const fail = tests.filter((t) => t.status === "Fail").length;
+    const blocked = tests.filter((t) => t.status === "Blocked").length;
+    const notRun = tests.filter((t) => t.status === "Not Run").length;
+    const total = tests.length;
+    const passRate = total === 0 ? 0 : Math.round((pass / total) * 100);
+    return { pass, fail, blocked, notRun, passRate };
+  }, [tests]);
 
   // Derive categories from current tests
   const categories = useMemo(() => {
@@ -190,6 +203,23 @@ export default function QAClient({ initialProjects, contributors }: Props) {
           </button>
         </div>
       </div>
+
+      {/* Stat strip */}
+      {tests.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 px-6 py-4 bg-surface border-b border-surface-border shrink-0">
+          <StatCard label="Pass" value={stats.pass} accent={QA_STATUS_THEME.Pass.dot} />
+          <StatCard label="Fail" value={stats.fail} accent={QA_STATUS_THEME.Fail.dot} />
+          <StatCard label="Blocked" value={stats.blocked} accent={QA_STATUS_THEME.Blocked.dot} />
+          <StatCard label="Not Run" value={stats.notRun} accent={QA_STATUS_THEME["Not Run"].dot} />
+          <div className="bg-white border border-surface-border rounded-xl px-5 py-4 shadow-sm col-span-2 sm:col-span-1 flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-xs text-gray-400">Pass Rate</p>
+              <p className="text-xs font-semibold text-gray-700">{stats.passRate}%</p>
+            </div>
+            <ProgressBar value={stats.passRate} color={QA_STATUS_THEME.Pass.dot} />
+          </div>
+        </div>
+      )}
 
       {/* Category tabs */}
       {tests.length > 0 && (

@@ -46,7 +46,7 @@ export default function DashboardOverview({ tasks, currentContributor, selectedP
     today.setHours(0, 0, 0, 0); // normalize to start of today so due-today tasks are included
     const sevenDays = new Date(today);
     sevenDays.setDate(today.getDate() + 7);
-    const adminView = isAdmin(currentContributor.email);
+    const adminView = isAdmin(currentContributor);
 
     return tasks
       .filter((t) => {
@@ -93,7 +93,7 @@ export default function DashboardOverview({ tasks, currentContributor, selectedP
       {currentContributor && (
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-            {isAdmin(currentContributor.email) ? "All tasks due this week" : "My tasks due this week"}
+            {isAdmin(currentContributor) ? "All tasks due this week" : "My tasks due this week"}
           </p>
           {myTasksThisWeek.length === 0 ? (
             <p className="text-xs text-gray-400">No tasks due in the next 7 days. 🎉</p>

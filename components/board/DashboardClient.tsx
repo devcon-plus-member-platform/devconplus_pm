@@ -42,6 +42,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
   );
   const [groups, setGroups] = useState<Group[]>([]);
   const [tasksByGroup, setTasksByGroup] = useState<Record<string, Task[]>>({});
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -129,6 +130,24 @@ export default function DashboardClient({ initialProjects, contributors }: Props
 
         setGroups((grps as Group[]) ?? []);
         setTasksByGroup(byGroup);
+
+        // Comment counts — one lightweight query for the whole board rather
+        // than a per-task fetch.
+        const taskIds = (tasks ?? []).map((t: Task) => t.id);
+        if (taskIds.length > 0) {
+          const { data: commentRows } = await supabase
+            .from("task_comments")
+            .select("task_id")
+            .in("task_id", taskIds);
+          if (loadIdRef.current !== loadId) return;
+          const counts: Record<string, number> = {};
+          for (const row of (commentRows ?? []) as { task_id: string }[]) {
+            counts[row.task_id] = (counts[row.task_id] ?? 0) + 1;
+          }
+          setCommentCounts(counts);
+        } else {
+          setCommentCounts({});
+        }
       } catch (err) {
         console.error("[loadBoardData] unexpected error:", err);
         if (loadIdRef.current === loadId) setLoadError(true);
@@ -146,6 +165,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
     if (!authReady || !selectedProjectId) {
       setGroups([]);
       setTasksByGroup({});
+      setCommentCounts({});
       setLoadError(false);
       return;
     }
@@ -304,7 +324,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
   }
 
   // ─── Task mutations ─────────────────────────────────────────────────────────
-  async function addTask(groupId: string) {
+  async function addTask(groupId: string, initialFields?: Partial<Pick<Task, "status" | "title">>) {
     if (!canEdit || !selectedProjectId) return;
     const position = (tasksByGroup[groupId] ?? []).length;
     const { data, error } = await supabase
@@ -315,6 +335,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
         title: "New Task",
         status: "Not Started",
         position,
+        ...initialFields,
       })
       .select(
         "*, assignee:contributors!assignee_id(id,email,full_name,role_id,telegram_username,created_at), attachments:task_attachments(*)"
@@ -606,6 +627,7 @@ export default function DashboardClient({ initialProjects, contributors }: Props
         selectedProjectId: selectedProjectId ?? "",
         collapsedGroups,
         canEdit,
+        commentCounts,
         updateProject,
         updateProjectStatus,
         toggleGroupCollapse,

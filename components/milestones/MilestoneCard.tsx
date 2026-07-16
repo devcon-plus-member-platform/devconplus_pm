@@ -19,10 +19,10 @@ export default function MilestoneCard({ milestone: m, onLogProgress, onViewHisto
 
   return (
     <div className={`bg-white rounded-2xl border shadow-sm p-4 flex flex-col gap-3 transition-all ${
-      isAchieved ? "border-green-200 bg-green-50/30" :
-      m.status === "At Risk" ? "border-orange-200" :
-      m.status === "Missed" ? "border-red-200 bg-red-50/20" :
-      "border-gray-100 hover:border-brand-200"
+      isAchieved ? "border-emerald-200 bg-emerald-50/30" :
+      m.status === "At Risk" ? "border-amber-200 bg-amber-50/20" :
+      m.status === "Missed" ? "border-rose-200 bg-rose-50/20" :
+      "border-surface-border hover:border-brand-200"
     }`}>
       {/* Header row */}
       <div className="flex items-start gap-3">
@@ -30,7 +30,7 @@ export default function MilestoneCard({ milestone: m, onLogProgress, onViewHisto
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <StatusBadge status={m.status} />
-            <CountdownText targetDate={m.target_date} />
+            <CountdownText targetDate={m.target_date} status={m.status} />
           </div>
           <h3 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-1">{m.title}</h3>
           {m.description && (
@@ -61,7 +61,7 @@ export default function MilestoneCard({ milestone: m, onLogProgress, onViewHisto
         </svg>
         Target: {new Date(m.target_date + "T00:00:00").toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
         {m.achieved_at && (
-          <span className="ml-2 text-green-600 font-medium">
+          <span className="ml-2 text-emerald-600 font-medium">
             · Achieved {new Date(m.achieved_at).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}
           </span>
         )}
